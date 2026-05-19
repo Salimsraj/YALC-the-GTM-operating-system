@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 /**
- * fullenrich-content-engagers — LinkedIn post URL to ICP-qualified, enriched CSV.
+ * fullenrich-content-engagers — engagers to ICP-qualified, enriched CSV.
  *
- *   node scripts/run.mjs <linkedin-post-url-or-post-id>
- *       [--out path.csv] [--icp config/icp.json] [--threshold 50]
- *       [--max <N>] [--max-credits <N>] [--dry-run] [--yes]
+ * Two input modes:
+ *   1. LinkedIn post URL (scrapes engagers via Unipile)
+ *      node scripts/run.mjs <linkedin-post-url-or-post-id> [flags]
+ *   2. CSV of contacts (skip Unipile entirely)
+ *      node scripts/run.mjs --csv path/to/leads.csv [flags]
  *
- * Required env: FULLENRICH_API_KEY, UNIPILE_API_KEY, UNIPILE_DSN, UNIPILE_ACCOUNT_ID
+ * Flags: [--out path.csv] [--icp config/icp.json] [--threshold 50]
+ *        [--max <N>] [--max-credits <N>] [--dry-run] [--yes]
+ *
+ * Required env (URL mode):  FULLENRICH_API_KEY, UNIPILE_API_KEY, UNIPILE_DSN, UNIPILE_ACCOUNT_ID
+ * Required env (CSV mode):  FULLENRICH_API_KEY
  *
  * Setup before first run:
  *   cd .claude/skills/fullenrich-content-engagers
@@ -28,7 +34,7 @@ import {
   fetchFromWebhookSite,
   createWebhookSiteToken,
 } from './lib/fullenrich-webhook.mjs';
-import { writeCsv } from './lib/csv.mjs';
+import { writeCsv, readCsv } from './lib/csv.mjs';
 import { loadIcp, scoreRow } from './icp.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -43,6 +49,7 @@ function parseArgs(argv) {
     'max-credits': 500,
     'dry-run': false,
     yes: false,
+    csv: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -181,36 +188,129 @@ function engagerToContact(raw) {
   };
 }
 
+/**
+ * Pick the first non-empty value from a CSV row by trying header aliases
+ * case-insensitively. CSVs from different tools (PhantomBuster, Evaboot,
+ * Sales Navigator, manual exports) use wildly inconsistent column names —
+ * this absorbs the variation so the caller doesn't have to pre-clean.
+ */
+function pickField(row, aliases) {
+  const lowerMap = {};
+  for (const k of Object.keys(row)) lowerMap[k.toLowerCase().trim()] = row[k];
+  for (const a of aliases) {
+    const v = lowerMap[a.toLowerCase()];
+    if (v != null && String(v).trim()) return String(v).trim();
+  }
+  return '';
+}
+
+/**
+ * Map a raw CSV row to the same contact shape engagerToContact() produces,
+ * so the downstream ICP + enrichment pipeline is unchanged.
+ */
+function csvRowToContact(row) {
+  let first = pickField(row, ['first_name', 'firstname', 'first name', 'given_name']);
+  let last  = pickField(row, ['last_name', 'lastname', 'last name', 'surname', 'family_name']);
+  if (!first || !last) {
+    const full = pickField(row, ['full_name', 'fullname', 'name']);
+    if (full) {
+      const parts = full.split(/\s+/);
+      if (!first) first = parts[0] || '';
+      if (!last)  last  = parts.slice(1).join(' ') || '';
+    }
+  }
+  const linkedin_url = pickField(row, [
+    'linkedin_url', 'linkedin', 'profile_url', 'linkedinurl',
+    'linkedin profile', 'linkedin_profile_url', 'linkedinprofileurl',
+    'profile url', 'linkedin url',
+  ]);
+  const title = pickField(row, [
+    'title', 'job_title', 'jobtitle', 'headline', 'position',
+    'current_position', 'job title',
+  ]);
+  const company_name = pickField(row, [
+    'company', 'company_name', 'companyname', 'current_company',
+    'organization', 'employer',
+  ]);
+  const domain = pickField(row, ['domain', 'company_domain', 'website']);
+  return {
+    first_name: first,
+    last_name: last,
+    linkedin_url,
+    title,
+    headline: title,
+    company_name,
+    domain,
+    enrich_fields: ['contact.work_emails', 'contact.phones'],
+    custom: { source: 'fullenrich-content-engagers:csv' },
+  };
+}
+
+/**
+ * Dedupe by linkedin_url when present, otherwise by name+company.
+ * Drops rows without first_name OR without both linkedin_url and company_name
+ * (FullEnrich needs at least one of those anchors to enrich).
+ */
+function dedupeContacts(contacts) {
+  const seen = new Map();
+  for (const c of contacts) {
+    if (!c.first_name) continue;
+    if (!c.linkedin_url && !c.company_name) continue;
+    const key = c.linkedin_url
+      ? c.linkedin_url.toLowerCase()
+      : `${c.first_name}|${c.last_name}|${c.company_name}`.toLowerCase();
+    seen.set(key, c);
+  }
+  return [...seen.values()];
+}
+
 async function main() {
   const { positional, flags } = parseArgs(process.argv.slice(2));
-  const postArg = positional[0];
-  if (!postArg) die('Usage: node scripts/run.mjs <linkedin-post-url-or-post-id> [flags]');
+
   if (!process.env.FULLENRICH_API_KEY) die('FULLENRICH_API_KEY not set');
-  const u = getUnipile();
+  if (!flags.csv && !positional[0]) {
+    die('Usage: node scripts/run.mjs <linkedin-post-url-or-post-id> OR --csv <path> [flags]');
+  }
 
   const credits = await getCredits();
   console.log(`[fullenrich] credit balance: ${credits.balance}`);
 
-  console.log('[unipile] resolving post...');
-  const { social_id, post } = await resolvePost(u, postArg);
-  console.log(`[unipile] social_id: ${social_id}`);
-  console.log(`[unipile] reactions: ~${post.reaction_counter ?? '?'}, comments: ~${post.comment_counter ?? '?'}`);
+  let engagers;
+  let sourceLabel;
 
-  const maxPages = Math.max(1, Math.ceil(parseInt(flags.max, 10) / 100));
-  console.log('[unipile] fetching reactions + comments...');
-  const [reactions, comments] = await Promise.all([
-    listAllReactions(u, social_id, maxPages).catch(e => { console.error('[unipile] reactions failed:', e.message); return []; }),
-    listAllComments(u, social_id, maxPages).catch(e => { console.error('[unipile] comments failed:', e.message); return []; }),
-  ]);
-  console.log(`[unipile] ${reactions.length} reactions + ${comments.length} comments`);
+  if (flags.csv) {
+    console.log(`[csv] reading ${flags.csv}...`);
+    const rows = await readCsv(flags.csv);
+    engagers = dedupeContacts(rows.map(csvRowToContact));
+    const maxCap = parseInt(flags.max, 10);
+    if (maxCap && engagers.length > maxCap) {
+      console.log(`[csv] --max=${maxCap} cap: trimming ${engagers.length} -> ${maxCap}`);
+      engagers = engagers.slice(0, maxCap);
+    }
+    const skipped = rows.length - engagers.length;
+    console.log(`[csv] ${rows.length} rows -> ${engagers.length} usable contacts (${skipped} skipped — need first_name + (linkedin_url or company))`);
+    sourceLabel = `CSV ${flags.csv}`;
+  } else {
+    const postArg = positional[0];
+    const u = getUnipile();
 
-  const byUrl = new Map();
-  for (const e of [...reactions, ...comments]) {
-    const c = engagerToContact(e);
-    if (c.linkedin_url && c.first_name) byUrl.set(c.linkedin_url, c);
+    console.log('[unipile] resolving post...');
+    const { social_id, post } = await resolvePost(u, postArg);
+    console.log(`[unipile] social_id: ${social_id}`);
+    console.log(`[unipile] reactions: ~${post.reaction_counter ?? '?'}, comments: ~${post.comment_counter ?? '?'}`);
+
+    const maxPages = Math.max(1, Math.ceil(parseInt(flags.max, 10) / 100));
+    console.log('[unipile] fetching reactions + comments...');
+    const [reactions, comments] = await Promise.all([
+      listAllReactions(u, social_id, maxPages).catch(e => { console.error('[unipile] reactions failed:', e.message); return []; }),
+      listAllComments(u, social_id, maxPages).catch(e => { console.error('[unipile] comments failed:', e.message); return []; }),
+    ]);
+    console.log(`[unipile] ${reactions.length} reactions + ${comments.length} comments`);
+
+    engagers = dedupeContacts([...reactions, ...comments].map(engagerToContact));
+    console.log(`[unipile] ${reactions.length + comments.length} engagements -> ${engagers.length} unique engagers`);
+    sourceLabel = `post ${social_id}`;
   }
-  const engagers = [...byUrl.values()];
-  console.log(`[unipile] ${reactions.length + comments.length} engagements -> ${engagers.length} unique engagers`);
 
   const icp = await loadIcp(flags.icp);
   const threshold = parseInt(flags.threshold, 10) || 50;
@@ -246,7 +346,7 @@ async function main() {
   const ok = await confirmSpend({
     expected: estimated,
     balance: credits.balance,
-    label: `Enrich ${contacts.length} ICP-qualified engagers from post ${social_id}`,
+    label: `Enrich ${contacts.length} ICP-qualified engagers from ${sourceLabel}`,
     yes: flags.yes,
   });
   if (!ok) process.exit(2);

@@ -1,12 +1,17 @@
 ---
 name: fullenrich-content-engagers
-description: Use when the user says "enrich people who engaged with this post", "qualify post engagers with FullEnrich", "scrape and enrich LinkedIn post {URL}", "engagers from this post into a CSV", "FullEnrich content engagers", or any variant indicating they want to convert LinkedIn post likers and commenters into ICP-qualified, enriched leads. Pulls engagers via Unipile, applies an ICP filter, then runs survivors through FullEnrich v2 bulk enrichment with webhook callback delivery.
-version: 1.0.0
+description: Use when the user says "enrich people who engaged with this post", "qualify post engagers with FullEnrich", "scrape and enrich LinkedIn post {URL}", "engagers from this post into a CSV", "enrich this CSV of leads", "FullEnrich content engagers", or any variant indicating they want to convert a list of leads — either LinkedIn post likers/commenters scraped via Unipile, or a bring-your-own CSV — into ICP-qualified, enriched leads via FullEnrich v2 bulk enrichment with webhook callback delivery.
+version: 2.0.0
 ---
 
 # FullEnrich Content Engagers
 
-One command turns a LinkedIn post URL into a CSV of ICP-qualified leads with verified work emails and phones. Powered by Unipile (engagement scrape) + FullEnrich (enrichment).
+One command turns a list of leads into a CSV of ICP-qualified prospects with verified work emails and phones. Two input modes:
+
+- **URL mode** — scrape engagers from a LinkedIn post via Unipile
+- **CSV mode** — bring your own list (any source: Sales Navigator export, PhantomBuster, Evaboot, manual paste, etc.)
+
+Both modes converge on the same ICP filter + FullEnrich enrichment pipeline.
 
 ## When This Skill Applies
 
@@ -14,6 +19,8 @@ One command turns a LinkedIn post URL into a CSV of ICP-qualified leads with ver
 - "qualify post engagers with FullEnrich"
 - "scrape and enrich LinkedIn post {URL}"
 - "engagers from {URL} into a CSV"
+- "enrich this CSV of leads with FullEnrich"
+- "qualify and enrich leads.csv"
 
 ## What This Skill Does NOT Do
 
@@ -40,6 +47,7 @@ This skill spends FullEnrich credits, which cost real money. Safeguards:
 
 ## Prerequisites
 
+URL mode requires all four:
 ```
 FULLENRICH_API_KEY=    # https://app.fullenrich.com/app/api
 UNIPILE_API_KEY=       # https://dashboard.unipile.com
@@ -47,34 +55,61 @@ UNIPILE_DSN=           # e.g. https://api18.unipile.com:14891
 UNIPILE_ACCOUNT_ID=    # the LinkedIn account ID under Unipile
 ```
 
-Optional:
+CSV mode requires only:
+```
+FULLENRICH_API_KEY=
+```
+
+Optional (both modes):
 ```
 FULLENRICH_WEBHOOK_URL=  # public URL for FullEnrich callbacks; otherwise webhook.site fallback
 ```
 
 ## Workflow
 
-1. **Validate inputs** — accept the LinkedIn post URL as the first positional arg.
-2. **Resolve `social_id`** via Unipile `get-post`.
-3. **Scrape engagers** — call `list-post-comments` + `list-post-reactions`, dedupe on LinkedIn URL.
-4. **Apply ICP filter** — load `config/icp.json` (job-title regex, seniority allow-list, geo, company-size), score each engager 0–100, drop everything below the threshold.
-5. **Estimate cost + confirm** — show the cost preview, block on stdin for `yes`.
-6. **Enrich** — chunk into ≤100 contacts per FullEnrich bulk request with `enrich_fields: ["contact.work_emails", "contact.phones"]`.
-7. **Receive callbacks** — webhook payloads land within ~30s per batch.
-8. **Write outputs** — `qualified-engagers.csv` (passed ICP + enriched) and `disqualified-log.csv` (failed ICP, kept for inspection).
+1. **Resolve input source**
+   - URL mode: resolve `social_id` via Unipile `get-post`, then `list-post-comments` + `list-post-reactions`.
+   - CSV mode: parse `--csv` file, map columns (case-insensitive header aliases for `first_name`, `last_name`, `linkedin_url`, `title`, `company`, etc.).
+2. **Dedupe** — keyed on `linkedin_url` when present, otherwise `first_name|last_name|company`. Rows missing first_name AND (linkedin_url OR company) are dropped.
+3. **Apply ICP filter** — load `config/icp.json` (job-title regex, seniority allow-list, geo, company-size), score each contact 0–100, drop everything below the threshold.
+4. **Estimate cost + confirm** — show the cost preview, block on stdin for `yes`.
+5. **Enrich** — chunk into ≤100 contacts per FullEnrich bulk request with `enrich_fields: ["contact.work_emails", "contact.phones"]`.
+6. **Receive callbacks** — webhook payloads land within ~30s per batch.
+7. **Write outputs** — `qualified-engagers.csv` (passed ICP + enriched) and `qualified-engagers-disqualified.csv` (failed ICP, kept for inspection).
 
 ## CLI Reference
 
 ```
-node scripts/run.mjs <linkedin-post-url>
+# URL mode
+node scripts/run.mjs <linkedin-post-url-or-post-id> [flags]
+
+# CSV mode
+node scripts/run.mjs --csv path/to/leads.csv [flags]
+
+Flags (shared):
     [--out path.csv]           # default qualified-engagers.csv
     [--icp config/icp.json]    # ICP rules file
     [--threshold 50]           # ICP minimum score (0-100)
-    [--max <N>]                # max engagers to consider (default 500)
+    [--max <N>]                # URL mode: page cap. CSV mode: hard row cap. (default 500)
     [--max-credits <N>]        # hard credit ceiling (default 500)
-    [--dry-run]                # scrape + ICP filter + cost preview, no spending
+    [--dry-run]                # filter + cost preview, no spending
     [--yes | -y]               # skip the interactive approval prompt
 ```
+
+## CSV column conventions
+
+The parser accepts the most common header naming conventions case-insensitively. For each contact field, the first matching header wins:
+
+| Internal field | Accepted CSV headers |
+|---|---|
+| `first_name` | `first_name`, `firstname`, `first name`, `given_name` (or split from `name` / `full_name`) |
+| `last_name`  | `last_name`, `lastname`, `last name`, `surname`, `family_name` (or split from `name` / `full_name`) |
+| `linkedin_url` | `linkedin_url`, `linkedin`, `profile_url`, `linkedin profile`, `linkedin_profile_url` |
+| `title` | `title`, `job_title`, `headline`, `position`, `current_position` |
+| `company_name` | `company`, `company_name`, `current_company`, `organization`, `employer` |
+| `domain` | `domain`, `company_domain`, `website` |
+
+See `examples/sample-leads.csv` for a minimal working CSV.
 
 ## Reference
 

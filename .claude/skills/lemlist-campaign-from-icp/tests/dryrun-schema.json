@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "lemlist-campaign-from-icp dryrun output",
+  "type": "object",
+  "required": [
+    "generated_at",
+    "input_prompt",
+    "campaign_title",
+    "icp",
+    "personas",
+    "proposed_filters",
+    "leads",
+    "sequence_steps",
+    "estimated_lemlist_credits",
+    "mcp_call_plan",
+    "state_on_push",
+    "approval_required",
+    "instruction"
+  ],
+  "properties": {
+    "generated_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"},
+    "input_prompt": {"type": "string", "minLength": 1},
+    "campaign_title": {"type": "string", "minLength": 1},
+    "icp": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "personas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["title_patterns", "seniority_tier", "routed_sequence_skill"],
+        "properties": {
+          "title_patterns": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "seniority_tier": {"enum": ["VP+", "Manager", "IC"]},
+          "routed_sequence_skill": {"enum": ["copywriting-vp-sequence", "copywriting-manager-sequence", "copywriting-ic-sequence"]},
+          "pains_identified": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "value_props": {"type": "array", "items": {"type": "string"}},
+    "offer": {"type": "string"},
+    "competitors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "differentiation"],
+        "properties": {
+          "name": {"type": "string"},
+          "differentiation": {"type": "string"}
+        }
+      }
+    },
+    "triggers": {"type": "array", "items": {"type": "string"}},
+    "proposed_filters": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["filterId", "in", "out"],
+        "properties": {
+          "filterId": {"type": "string", "minLength": 1},
+          "in": {"type": "array", "items": {"type": "string"}},
+          "out": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "leads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["linkedin_url", "email_status", "enrichment_planned", "angle", "persona_tier"],
+        "properties": {
+          "linkedin_url": {"type": "string"},
+          "email": {"type": "string"},
+          "email_status": {"type": "string"},
+          "enrichment_planned": {"type": "boolean"},
+          "angle": {"type": "string"},
+          "persona_tier": {"enum": ["VP+", "Manager", "IC"]},
+          "first_name": {"type": "string"},
+          "last_name": {"type": "string"},
+          "company_name": {"type": "string"},
+          "country": {"type": "string"},
+          "trigger": {"type": "string"}
+        }
+      }
+    },
+    "sequence_steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["step", "delay_days", "body"],
+        "properties": {
+          "step": {"type": "integer", "minimum": 1},
+          "delay_days": {"type": "integer", "minimum": 0},
+          "subject": {"type": ["string", "null"]},
+          "body": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "copywriting_analyzer_score": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
+    "estimated_lemlist_credits": {
+      "type": "object",
+      "required": ["sourcing", "enrichment", "total"],
+      "properties": {
+        "sourcing": {"type": "integer", "minimum": 0},
+        "enrichment": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0}
+      }
+    },
+    "mcp_call_plan": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "required": ["step"],
+        "properties": {
+          "step": {"type": "string"},
+          "tool": {"type": ["string", "null"]},
+          "payload_shape": {"type": "object"},
+          "captures": {"type": "array", "items": {"type": "string"}},
+          "loop": {"type": "string"},
+          "notes": {"type": "string"},
+          "action": {"type": "string"},
+          "url_shape": {"type": "string"}
+        }
+      }
+    },
+    "state_on_push": {"enum": ["DRAFT"]},
+    "approval_required": {"const": true},
+    "instruction": {"type": "string", "minLength": 1}
+  }
+}

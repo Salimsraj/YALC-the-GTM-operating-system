@@ -1,6 +1,6 @@
 ---
 name: lemlist-campaign-from-icp
-description: Use when the user says "create a lemlist campaign for X", "build a lemlist campaign from this ICP", "spin a lemlist campaign for Y", "ICP to lemlist", "natural language to lemlist campaign", "draft a lemlist campaign", "lemlist campaign for VPs/Managers/ICs at Z", or any variant indicating they want to turn a natural-language ICP description into a paused, ready-to-review lemlist campaign with sourced leads and a seniority-routed sequence. Orchestrates 24 lemlist atomic skills (ICP, persona, sourcing, copywriting, QA) and the lemlist MCP server (`lemleads_search`, `create_campaign`) into one end-to-end loop. Hard approval gate before the MCP push — never auto-sends.
+description: Use when the user says "create a lemlist campaign for X", "build a lemlist campaign from this ICP", "spin a lemlist campaign for Y", "ICP to lemlist", "natural language to lemlist campaign", "draft a lemlist campaign", "lemlist campaign for VPs/Managers/ICs at Z", or any variant indicating they want to turn a natural-language ICP description into a paused, ready-to-review lemlist campaign with sourced leads and a seniority-routed sequence. Orchestrates 24 lemlist atomic skills (ICP, persona, sourcing, copywriting, QA) and the lemlist MCP server (`get_lemleads_filters`, `lemleads_search`, `create_campaign_with_sequence`, `add_sequence_step`, `add_lead_to_campaign`, `validate_campaign_readiness`) into one end-to-end loop. Hard approval gate before the MCP push — never auto-sends.
 version: 1.0.0
 ---
 
@@ -27,7 +27,7 @@ LEMLIST_API_KEY=         # https://app.lemlist.com → Settings → Integrations
 
 OAuth alternative (interactive use): `claude mcp add --transport http lemlist https://app.lemlist.com/mcp`.
 
-The lemlist MCP must be connected. Verify with `/mcp` in Claude Code — you should see operations like `create_campaign`, `lemleads_search`, campaign stats, etc.
+The lemlist MCP must be connected. Verify with `/mcp` in Claude Code — you should see operations like `get_lemleads_filters`, `lemleads_search`, `create_campaign_with_sequence`, `add_sequence_step`, `add_lead_to_campaign`, `set_campaign_state`, `validate_campaign_readiness`, campaign stats, etc.
 
 This skill depends on the 24 atomic lemlist skills bundled under `.claude/skills/lemlist/`. They were imported from [lemlist's open-source skill library](https://github.com/l3mpire/claude-skills) under MIT. See `.claude/skills/lemlist/README.md` for the attribution and update procedure.
 
@@ -35,16 +35,16 @@ This skill depends on the 24 atomic lemlist skills bundled under `.claude/skills
 
 This skill creates a campaign in a real lemlist account using paid lemlist credits (sourcing + agentic enrichment). It must never auto-send. Safeguards:
 
-1. **PAUSED state is the default.** The MCP `create_campaign` call always passes the paused flag. The user must manually start the campaign from the lemlist UI.
+1. **DRAFT state is the default.** Campaigns are created in DRAFT state by default via `create_campaign_with_sequence`. The orchestrator MUST NOT call `set_campaign_state` with action `start`. Verify with `validate_campaign_readiness` before reporting readiness to the user. The campaign stays in DRAFT in the user's lemlist account until the user starts it manually in the lemlist UI.
 2. **Dryrun first.** Render the full sequence text, the lead list summary, the persona routing breakdown, and the estimated lemlist credit usage to a local JSON file at `~/.gtm-os/lemlist-campaign-from-icp/dryrun-{timestamp}.json`. Quote the file path back to the user.
 3. **Lead count ceiling.** Default cap is 50 leads per run. The user can raise it with an explicit instruction, but the skill always quotes the number back before sourcing.
-4. **Hard approval prompt.** After the dryrun, the skill asks `"Approve creating campaign '{title}' in lemlist with {N} leads and the sequence above? Type 'approve' to push, anything else to abort."` Block on the user response. Do not call MCP `create_campaign` until the user types `approve`.
-5. **No silent retries.** If `create_campaign` fails, surface the error and stop. Do not retry without explicit user instruction.
+4. **Hard approval prompt.** After the dryrun, the skill asks `"Approve creating campaign '{title}' in lemlist with {N} leads and the sequence above? Type 'approve' to push, anything else to abort."` Block on the user response. Do not call any campaign-creation or lead-add MCP tool until the user types `approve`.
+5. **No silent retries.** If any MCP creation/add call fails, surface the error and stop. Do not retry without explicit user instruction.
 
 **When Claude invokes this skill on a user's behalf:**
 1. ALWAYS produce the dryrun output first.
 2. Quote the EXACT lead count and the EXACT campaign title back to the user.
-3. WAIT for explicit user `approve` before calling MCP `create_campaign`.
+3. WAIT for explicit user `approve` before calling any campaign-creation or lead-add MCP tool.
 4. Only proceed past dryrun after the user has approved the spend in this conversation.
 
 ## End-to-end orchestration (25 stages)
@@ -63,16 +63,19 @@ For each step below, invoke the lemlist atomic skill at `.claude/skills/lemlist/
 6. `competitor-finder` — identify 2–3 obvious competitors per persona; generate differentiation angles to weave into the copy.
 7. `trigger-finder` — identify buying triggers (funding rounds, exec hires, tool changes) that the messaging can reference.
 
-### Stage 2 — Sourcing (3 skills + 1 MCP op)
+### Stage 2 — Sourcing (3 skills + 2 MCP ops)
+
+Lemlist's filter registry can change. Always discover filterIds at runtime rather than hardcoding.
 
 8. `company-finder` — translate the ICP into a lemlist firmographic search configuration (industry, size, geography, technographics).
 9. `list-builder` — combine the firmographic config with signal filters (e.g., active hiring, funding signals) into a single search shape.
 10. `people-finder` — translate persona seniority + role into lemlist People Database search filters.
-11. **MCP call: `lemleads_search`** with the combined search shape — returns a live lead list from lemlist's People Database. Cap at the lead count ceiling (default 50). Dedupe by `linkedin_url` and `email`.
+11a. **MCP call: `get_lemleads_filters`** — fetch the active filter registry. Use the returned `filterId` values to shape the search filters array. UI-only filters (`notInContacts`, `notInCampaign`) are not available over this transport — drop them if surfaced by upstream skills.
+11b. **MCP call: `lemleads_search`** with `mode: "people"` (or `"companies"`, never `"leads"`) and a `filters` array of `{filterId, in, out}` objects derived from stage 11a. Cap `size` at the lead count ceiling (default 50, max 100 per page). Dedupe results by `linkedin_url` and `email` before storing in working memory.
 
-### Stage 3 — Enrichment
+### Stage 3 — Enrichment posture
 
-12. **MCP-side: lemlist Agentic Enrichment** runs automatically on every lead imported via `lemleads_search`. AI agents research the lead's website, LinkedIn profile, recent news, hiring activity, and tech stack. No skill invocation needed — the enrichment is part of lemlist's platform.
+12. `lemleads_search` returns search results, not imported leads. Enrichment happens at lead-add time (stage 25d) and via lemlist's server-side agentic enrichment pipeline once a lead is part of a campaign. The orchestrator does NOT toggle the per-call enrichment flags (`findEmail`, `verifyEmail`, `linkedinEnrichment`, `findPhone`) on `add_lead_to_campaign` by default — those cost credits per flag per lead. The user can opt in via an explicit instruction like "enrich phones too" before approval, which switches the matching flag(s) ON for that run only. Quote the projected credit cost back to the user during the dryrun.
 
 ### Stage 4 — Per-lead personalization angle
 
@@ -103,20 +106,52 @@ For each step below, invoke the lemlist atomic skill at `.claude/skills/lemlist/
 ### Stage 8 — Approval gate
 
 24. **Render the full dryrun** to `~/.gtm-os/lemlist-campaign-from-icp/dryrun-{timestamp}.json`:
-    - `icp` (structured)
-    - `personas` (with seniority routing)
-    - `leads` (sourced + enriched, capped at the ceiling)
-    - `angles` (per lead)
-    - `sequence` (per persona tier, all emails inline)
-    - `copywriting_analyzer_score`
-    - `estimated_lemlist_credits` (sourcing + enrichment)
     - `campaign_title` (proposed, user can override)
+    - `icp` (structured)
+    - `personas[].title_patterns[]`
+    - `personas[].seniority_tier` — must be one of `"VP+"`, `"Manager"`, `"IC"`
+    - `personas[].routed_sequence_skill` — one of `copywriting-vp-sequence` / `copywriting-manager-sequence` / `copywriting-ic-sequence`
+    - `proposed_filters[]` — array of `{filterId, in, out}` objects (real filterIds from stage 11a)
+    - `leads[]` — each with `linkedin_url`, `email`, `email_status`, `enrichment_planned: bool`, `angle` (per-lead text from stage 13), `persona_tier`
+    - `sequence_steps[]` — 3 emails with `delay_days`, `subject`, `body` per step
+    - `copywriting_analyzer_score` (0-100, may be `null` if stage 22 failed)
+    - `estimated_lemlist_credits` — `{sourcing, enrichment}` breakdown
+    - `mcp_call_plan[]` — ordered list of the exact MCP calls + payloads that will fire on approval (campaignId and sequenceId shown as placeholders; real IDs only known after stage 25a fires)
 
-    Quote the file path back to the user. Print a one-paragraph summary in chat: `N leads sourced, M personas, X-touch sequence, score Y/100. Approve to push as paused campaign '{title}'?`
+    Quote the file path back to the user. Print a one-paragraph summary in chat: `N leads sourced, M personas, X-touch sequence, score Y/100. Approve to push as draft campaign '{title}'?`
 
-### Stage 9 — Push
+### Stage 9 — Push (real MCP chain)
 
-25. **On `approve`: MCP call `create_campaign`** with the sequence, the lead list, PAUSED state, and the proposed title. Surface the campaign URL in lemlist back to the user. Do not start the campaign — the user does that from the lemlist UI after final review.
+25. **On `approve`**, execute the following ordered MCP calls. Capture returned IDs and thread them forward. Stop immediately on the first failure.
+
+    **25a. MCP call: `create_campaign_with_sequence`**
+    Payload: `{ name: <campaign_title>, subject: <sequence_steps[0].subject>, body: <sequence_steps[0].body>, emoji: <optional>, timezone: <user-supplied or "Europe/Paris"> }`
+    Capture: `campaignId` (cam_xxx), `sequenceId` (seq_xxx)
+    Result: campaign created in DRAFT state with step 1 in place.
+
+    **25b. MCP call: `add_sequence_step`** (for step 2)
+    Payload: `{ campaignId, sequenceId, type: "email", delay: <sequence_steps[1].delay_days>, delayType: "within", message: <sequence_steps[1].body>, subject: <omit to send as thread reply>, userConfirmed: true }`
+
+    **25c. MCP call: `add_sequence_step`** (for step 3)
+    Payload: `{ campaignId, sequenceId, type: "email", delay: <sequence_steps[2].delay_days>, delayType: "within", message: <sequence_steps[2].body>, subject: <omit to send as thread reply>, userConfirmed: true }`
+
+    **25d. For each lead in `leads[]`: MCP call: `add_lead_to_campaign`**
+    Payload: `{ campaignId, email, firstName, lastName, linkedinUrl, companyName, customVariables: { angle, persona_tier }, deduplicate: true }`. Enrichment flags (`findEmail`, `verifyEmail`, `linkedinEnrichment`, `findPhone`) are OFF by default — agentic enrichment via the platform's own pipeline happens server-side regardless of these flags.
+
+    Rate-limit and partial-failure handling:
+    - Process leads sequentially, not in parallel (lemlist API is rate-limited).
+    - On 429 or 5xx, retry once with 2s backoff; on second failure, log the lead to the dryrun JSON's `failed_leads[]` array and continue.
+    - After the loop, surface `succeeded_count`, `failed_count`, and the `failed_leads[]` summary to the user before stage 25e.
+    - If `failed_count > 0.2 * succeeded_count`, STOP and surface the failure summary; do not validate readiness.
+
+    **25e. MCP call: `validate_campaign_readiness`**
+    Payload: `{ campaignId }`
+    Surface the result (`ready` or `has_errors` + the `errors[]` array) to the user verbatim.
+
+    **25f. Print the campaign URL** so the user can review in the lemlist UI before starting:
+    `https://app.lemlist.com/campaigns/{campaignId}` (verify URL format against lemlist docs at publish time).
+
+    The orchestrator NEVER calls `set_campaign_state` with action `start`. The campaign stays in DRAFT until the user starts it manually.
 
 ## Post-launch (companion, not in this skill)
 

@@ -67,23 +67,23 @@ that are hiring Account Executives. Our product helps RevOps teams cut quota
 ramp time from 6 months to 3. 50 leads, paused.
 ```
 
-The skill triggers, walks through the 25-stage chain (visible in chat), and produces a dryrun output at `~/.gtm-os/lemlist-campaign-from-icp/dryrun-{timestamp}.json`. It then asks for your `approve` before calling MCP `create_campaign`.
+The skill triggers, walks through the 25-stage chain (visible in chat), and produces a dryrun output at `~/.gtm-os/lemlist-campaign-from-icp/dryrun-{timestamp}.json`. It then asks for your `approve` before calling any campaign-creation or lead-add MCP tool.
 
-After approval, the campaign appears in your lemlist UI in **PAUSED** state — review and start it manually.
+After approval, the campaign appears in your lemlist UI in **DRAFT** state — review and start it manually. The orchestrator never calls `set_campaign_state` with action `start`.
 
-## What the chain does (24 lemlist skills + 2 MCP ops)
+## What the chain does (24 lemlist skills + 6 MCP ops)
 
 | Stage | Lemlist skills invoked | MCP ops |
 |---|---|---|
 | Strategic foundation | `icp-definer`, `persona-definer`, `pain-identifier`, `value-prop-lister`, `offer-definer`, `competitor-finder`, `trigger-finder` | — |
-| Sourcing | `company-finder`, `list-builder`, `people-finder` | `lemleads_search` |
-| Enrichment | (lemlist Agentic Enrichment runs auto on import) | — |
+| Sourcing | `company-finder`, `list-builder`, `people-finder` | `get_lemleads_filters`, `lemleads_search` |
+| Enrichment | (server-side platform enrichment, no flags enabled by default) | — |
 | Per-lead angle | `linkedin-outbound-angle` | — |
 | Campaign design | `campaign-angle-finder`, `outbound-campaign-architect` | — |
 | Routing + writing | `copywriting-vp-sequence` / `copywriting-manager-sequence` / `copywriting-ic-sequence`, `copywriting-first-touch`, `copywriting-follow-up`, `cta-designer` | — |
 | Quality gate | `copywriting-refiner`, `copywriting-analyzer`, `gtm-action-thinker` | — |
 | Approval gate | (Yalc-side dryrun + user `approve`) | — |
-| Push | — | `create_campaign` (PAUSED) |
+| Push | — | `create_campaign_with_sequence`, `add_sequence_step` × 2, `add_lead_to_campaign` × N, `validate_campaign_readiness` (campaign stays in DRAFT) |
 
 Detailed stage-by-stage breakdown in [SKILL.md](./SKILL.md).
 

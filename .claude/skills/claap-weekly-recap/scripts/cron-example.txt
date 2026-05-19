@@ -1,0 +1,28 @@
+# Claap Weekly Recap — cron schedule (Linux / WSL)
+#
+# Install:
+#   1. Edit your crontab: crontab -e
+#   2. Paste one of the lines below, adjusting the path to your run.sh
+#   3. Save and exit
+#
+# Verify: crontab -l
+# Logs: tailing the LOG_FILE inside run.sh — cron itself sends mail on stderr
+# if your system has MTA configured; otherwise check the LOG_FILE.
+
+# Every Saturday at 08:00 local
+0 8 * * 6 /absolute/path/to/run.sh
+
+# Every Saturday at 08:00 UTC (use if your machine timezone shifts seasonally)
+# 0 8 * * 6 TZ=UTC /absolute/path/to/run.sh
+
+# Every weekday at 18:00 (daily end-of-day recap instead of weekly)
+# 0 18 * * 1-5 /absolute/path/to/run.sh
+# (also change lookback_days=1 in run.sh)
+
+# Notes:
+# - cron does NOT load your shell rc files, so CLAAP_API_KEY must be either
+#   already exported in the cron environment, OR set inside run.sh (or sourced
+#   from a dedicated env file inside run.sh as the template does).
+# - Use absolute paths everywhere. cron PATH is minimal.
+# - If your `claude` binary is in a non-standard location, set CLAUDE_BIN
+#   explicitly in run.sh.

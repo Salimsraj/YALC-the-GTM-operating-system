@@ -1,0 +1,54 @@
+# Claap Weekly Recap — systemd timer + service (Linux)
+#
+# Install:
+#   1. Copy this file's `[Timer]` block into ~/.config/systemd/user/claap-weekly-recap.timer
+#   2. Copy the [Service] block into ~/.config/systemd/user/claap-weekly-recap.service
+#   3. systemctl --user daemon-reload
+#   4. systemctl --user enable --now claap-weekly-recap.timer
+#   5. systemctl --user list-timers     # confirm it's scheduled
+#   6. systemctl --user start claap-weekly-recap.service   # one-off manual fire
+#
+# Logs: journalctl --user -u claap-weekly-recap.service
+# Uninstall: systemctl --user disable --now claap-weekly-recap.timer
+#
+# Replace <PLACEHOLDER> values below.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FILE: ~/.config/systemd/user/claap-weekly-recap.timer
+# ──────────────────────────────────────────────────────────────────────────────
+
+[Unit]
+Description=Run Claap Weekly Recap every Saturday at 08:00
+
+[Timer]
+# OnCalendar accepts cron-like syntax. "Sat *-*-* 08:00:00" = every Saturday at 8am.
+OnCalendar=Sat *-*-* 08:00:00
+Persistent=true
+Unit=claap-weekly-recap.service
+
+[Install]
+WantedBy=timers.target
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FILE: ~/.config/systemd/user/claap-weekly-recap.service
+# ──────────────────────────────────────────────────────────────────────────────
+
+[Unit]
+Description=Claap Weekly Recap one-shot run
+
+[Service]
+Type=oneshot
+# Replace with the absolute path to your run.sh
+ExecStart=<ABSOLUTE_PATH_TO_run.sh>
+# Optional: pin to a specific working directory if your run.sh assumes one
+# WorkingDirectory=<ABSOLUTE_PATH_TO_WORKSPACE>
+
+# systemd doesn't load your shell rc files. Export needed env via EnvironmentFile
+# or Environment= directives. Easiest: keep secrets in an env file, point here.
+EnvironmentFile=%h/.gtm-os/.env
+# Or inline (less secure — visible in `systemctl --user show`):
+# Environment="CLAAP_API_KEY=cla_..."
+
+# Reasonable resource limits — claude -p with opus + 50 max-turns rarely exceeds
+# 5 minutes wall-clock, but headroom is cheap.
+TimeoutStartSec=900

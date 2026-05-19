@@ -1,0 +1,49 @@
+# Claap Weekly Recap — Background Agent Template
+# Runs the claap-weekly-recap skill on a Saturday-morning schedule via the
+# Yalc agent system.
+#
+# Install:
+#   cp configs/agents/claap-weekly-recap.yaml ~/.gtm-os/agents/claap-weekly-recap.yaml
+#   # Edit the file to fill in your gtm_action_items_data_source_id and slack_recipient
+#   npx tsx src/cli/index.ts agent:install --agent claap-weekly-recap
+#
+# Run manually:
+#   npx tsx src/cli/index.ts agent:run --name claap-weekly-recap
+#
+# Prerequisites (see .claude/skills/claap-weekly-recap/references/setup.md):
+#   - CLAAP_API_KEY exported in env
+#   - Claap MCP registered in your .mcp.json
+#   - Notion DB created with the 10-property schema (notion-db-schema.md)
+#   - Slack MCP available, OR SLACK_WEBHOOK_URL exported in env
+
+id: claap-weekly-recap
+name: Claap Weekly Recap
+description: >
+  Every Saturday at 08:00 local time, pulls the last 7 days of Claap recordings,
+  extracts per-deal action items with verbatim quotes and Claap timestamps,
+  synthesizes 2-4 weekly focus blocks, writes them to a Notion Kanban DB,
+  and delivers a Slack summary.
+
+steps:
+  - skillId: claap-weekly-recap
+    input:
+      # ── REQUIRED — fill these in before installing ─────────────
+      gtm_action_items_data_source_id: collection://<YOUR_NOTION_DS_UUID>
+      slack_recipient: U<YOUR_SLACK_USER_ID>
+
+      # ── OPTIONAL — defaults shown ──────────────────────────────
+      lookback_days: 7
+      # week_label auto-computed from today if omitted (ISO week format)
+      prior_recap_history_path: ~/.gtm-os/state/claap-recap-history.md
+    continueOnError: false
+
+schedule:
+  type: weekly
+  weekday: saturday
+  hour: 8
+  minute: 0
+
+maxRetries: 1
+# 15-minute budget — opus with max-turns 50 + 8-10 transcripts rarely exceeds 8 minutes,
+# headroom for slow Claap responses + Notion batch writes.
+timeoutMs: 900000

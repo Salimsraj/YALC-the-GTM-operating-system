@@ -1,0 +1,106 @@
+#!/bin/zsh
+# ─────────────────────────────────────────────────────────────
+# Claap Weekly Recap — wrapper script
+#
+# Schedule via launchd (macOS), cron (Linux), or systemd timer.
+# Fires `claude -p` headless with the claap-weekly-recap skill loaded
+# and writes the run output to a log file.
+#
+# Replace every <PLACEHOLDER> below before installing.
+# ─────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+# ── REQUIRED — set these to your local paths ─────────────────────
+WORKSPACE="<ABSOLUTE_PATH_TO_YOUR_CLAUDE_CODE_WORKSPACE>"
+# Example: WORKSPACE="$HOME/Code/my-gtm-stuff"
+# This is where your .mcp.json lives that registers the Claap MCP.
+
+SKILL_DIR="$WORKSPACE/.claude/skills/claap-weekly-recap"
+LOG_DIR="$WORKSPACE/logs"
+STATE_DIR="$HOME/.gtm-os/state"
+HISTORY_FILE="$STATE_DIR/claap-recap-history.md"
+LOG_FILE="$LOG_DIR/claap-weekly-recap-$(date +%F).log"
+CLAUDE_BIN="$HOME/.local/bin/claude"
+
+# ── REQUIRED — your skill inputs ─────────────────────────────────
+GTM_ACTION_ITEMS_DS_ID="collection://<YOUR_NOTION_DS_UUID>"
+SLACK_RECIPIENT="<U_YOUR_SLACK_USER_ID>"   # or @handle if MCP supports it
+LOOKBACK_DAYS=7
+MAX_TURNS=50
+MODEL="claude-opus-4-6"                     # or claude-sonnet-4-6 for cost
+
+# ── OPTIONAL — Slack webhook fallback (no MCP path) ──────────────
+# Set this if your Slack MCP isn't available in headless mode.
+# Leave blank to require the Slack MCP.
+SLACK_WEBHOOK_URL="${SLACK_WEBHOOK_URL:-}"
+
+mkdir -p "$LOG_DIR" "$STATE_DIR"
+
+# ── Kill switch ──────────────────────────────────────────────────
+STOP_FILE="$WORKSPACE/STOP_CLAAP_WEEKLY_RECAP"
+if [[ -f "$STOP_FILE" ]]; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] STOPPED — kill switch active. Remove $STOP_FILE to re-enable." >> "$LOG_FILE"
+  exit 0
+fi
+
+# ── Credentials ──────────────────────────────────────────────────
+# CLAAP_API_KEY must be in env at MCP-launch time. Source from a dedicated
+# env file rather than wholesale-sourcing a multi-key file — wholesale sourcing
+# can leak ANTHROPIC_API_KEY and flip `claude -p` into pay-per-token API mode
+# instead of subscription mode.
+CLAAP_ENV_FILE="${CLAAP_ENV_FILE:-$HOME/.gtm-os/.env}"
+if [[ -z "${CLAAP_API_KEY:-}" && -f "$CLAAP_ENV_FILE" ]]; then
+  CLAAP_API_KEY=$(grep -E '^CLAAP_API_KEY=' "$CLAAP_ENV_FILE" | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+fi
+
+if [[ -z "${CLAAP_API_KEY:-}" ]]; then
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] FATAL — CLAAP_API_KEY not set. Export it or add to $CLAAP_ENV_FILE." >> "$LOG_FILE"
+  exit 1
+fi
+
+export CLAAP_API_KEY
+[[ -n "$SLACK_WEBHOOK_URL" ]] && export SLACK_WEBHOOK_URL
+
+# Ensure headless claude uses Claude Code subscription, not API credits
+unset ANTHROPIC_API_KEY
+
+# CWD must be the workspace so claude -p auto-discovers .mcp.json
+cd "$WORKSPACE"
+
+# ── ISO week ─────────────────────────────────────────────────────
+WEEK_LABEL=$(date +%G-W%V)
+TODAY=$(date +%F)
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting Claap Weekly Recap for ${WEEK_LABEL} (lookback: ${LOOKBACK_DAYS}d)" >> "$LOG_FILE"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] DS: $GTM_ACTION_ITEMS_DS_ID · Slack: $SLACK_RECIPIENT · Model: $MODEL" >> "$LOG_FILE"
+
+# ── Prompt assembly ──────────────────────────────────────────────
+TMPDIR_LOCAL=$(mktemp -d)
+trap 'rm -rf "$TMPDIR_LOCAL"' EXIT
+PROMPT_FILE="$TMPDIR_LOCAL/prompt.txt"
+
+{
+  cat "$SKILL_DIR/SKILL.md"
+  printf '\n---\n\n## Task\n\n'
+  printf 'gtm_action_items_data_source_id: %s\n' "$GTM_ACTION_ITEMS_DS_ID"
+  printf 'slack_recipient: %s\n' "$SLACK_RECIPIENT"
+  printf 'week_label: %s\n' "$WEEK_LABEL"
+  printf 'lookback_days: %s\n' "$LOOKBACK_DAYS"
+  printf 'prior_recap_history_path: %s\n' "$HISTORY_FILE"
+  printf "today: %s\n\n" "$TODAY"
+  printf 'Execute the full 8-step workflow. Use Claap MCP for call data, Notion MCP for the GTM Action Items DB, Slack MCP (or the SLACK_WEBHOOK_URL env var via Bash + curl) for the summary DM. Append focus block titles to the history file.\n'
+} > "$PROMPT_FILE"
+
+# ── Run ──────────────────────────────────────────────────────────
+unset CLAUDECODE  # Belt-and-suspenders: signal we're outside an interactive CC session
+
+cat "$PROMPT_FILE" | "$CLAUDE_BIN" -p \
+  --model "$MODEL" \
+  --max-turns "$MAX_TURNS" \
+  --dangerously-skip-permissions \
+  --allowedTools "ToolSearch,Read,Write,Bash,Glob,Grep,ReadMcpResourceTool,ListMcpResourcesTool,mcp__claap__*,mcp__claude_ai_Notion__notion-fetch,mcp__claude_ai_Notion__notion-create-pages,mcp__claude_ai_Notion__notion-update-data-source,mcp__notion__notion-fetch,mcp__notion__notion-create-pages,mcp__notion__notion-update-data-source,mcp__claude_ai_Slack__slack_send_message,mcp__claude_ai_Slack__slack_search_users" \
+  --output-format text \
+  >> "$LOG_FILE" 2>&1
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Run complete." >> "$LOG_FILE"

@@ -11,6 +11,7 @@ import { learningRoutes } from './routes/learning'
 import { campaignRoutes } from './routes/campaigns'
 import { swipeRoutes } from './routes/swipe'
 import { webhookRoutes } from './routes/webhooks'
+import { claapWebhookRoutes } from './routes/claap-webhook'
 import { frameworkRoutes } from './routes/frameworks'
 import { setupRoutes } from './routes/setup'
 import { todayRoutes } from './routes/today'
@@ -72,6 +73,11 @@ export function createApp() {
   if (apiToken) {
     app.use('/api/*', bearerAuth({ token: apiToken }))
   }
+
+  // Inbound webhooks from third-party providers (mounted OUTSIDE /api/* so they
+  // bypass our internal bearer token — the providers verify themselves via
+  // signed payloads). Currently: Claap.
+  app.route('/webhooks/claap', claapWebhookRoutes)
 
   // API routes
   app.route('/api/review', reviewRoutes)

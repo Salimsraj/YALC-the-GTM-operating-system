@@ -1,6 +1,6 @@
-import { execSync, spawnSync } from 'child_process'
+import { execSync, spawnSync } from "child_process";
 
-const IS_WIN = process.platform === 'win32'
+const IS_WIN = process.platform === "win32";
 
 /**
  * Fetch a GitHub PR's diff + metadata, then ask Claude Code to write a
@@ -10,10 +10,10 @@ const IS_WIN = process.platform === 'win32'
  *   yalc-gtm describe-change <pr-url>
  */
 export async function runDescribeChange(prUrl: string) {
-  await ensureClaude()
-  ensureClaudeAuth()
+  await ensureClaude();
+  ensureClaudeAuth();
 
-  console.log('[describe-change] Asking Claude to describe the PR...')
+  console.log("[describe-change] Asking Claude to describe the PR...");
 
   const prompt =
     `You have been given a GitHub Pull Request URL: ${prUrl}\n\n` +
@@ -28,72 +28,68 @@ export async function runDescribeChange(prUrl: string) {
     `   - What users or the business will notice or benefit from\n` +
     `   - Which parts of the product changed and why\n` +
     `4. Keep it short (under 200 words), friendly, and positive.\n\n` +
-    `Write the CHANGES.md file now. Do not ask for confirmation.`
+    `Write the CHANGES.md file now. Do not ask for confirmation.`;
 
-  const result = spawnSync(
-    'claude',
-    ['-p', prompt, '--dangerously-skip-permissions'],
-    { stdio: 'inherit', shell: IS_WIN },
-  )
+  const result = spawnSync("claude", ["-p", prompt, "--dangerously-skip-permissions"], { stdio: "inherit", shell: IS_WIN });
 
   if (result.status !== 0) {
-    console.error('[describe-change] Claude exited with an error. CHANGES.md may be incomplete.')
-    process.exit(1)
+    console.error("[describe-change] Claude exited with an error. CHANGES.md may be incomplete.");
+    process.exit(1);
   }
 
-  console.log('[describe-change] CHANGES.md written.')
+  console.log("[describe-change] CHANGES.md written.");
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function claudeInstalled(): boolean {
   try {
-    execSync('claude --version', { stdio: 'pipe' })
-    return true
+    execSync("claude --version", { stdio: "pipe" });
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
 async function ensureClaude() {
-  if (claudeInstalled()) return
+  if (claudeInstalled()) return;
 
-  console.log('[describe-change] Claude CLI not found. Installing via npm...')
-  const res = spawnSync('npm', ['install', '-g', '@anthropic-ai/claude-code'], {
-    stdio: 'inherit',
+  console.log("[describe-change] Claude CLI not found. Installing via npm...");
+  const res = spawnSync("npm", ["install", "-g", "@anthropic-ai/claude-code"], {
+    stdio: "inherit",
     shell: IS_WIN,
-  })
+  });
 
   if (res.status !== 0 || !claudeInstalled()) {
-    console.error('[describe-change] Could not install Claude CLI automatically.')
-    console.error('  Install manually: npm install -g @anthropic-ai/claude-code')
-    console.error('  Then re-run: yalc-gtm describe-change <pr-url>')
-    process.exit(1)
+    console.error("[describe-change] Could not install Claude CLI automatically.");
+    console.error("  Install manually: npm install -g @anthropic-ai/claude-code");
+    console.error("  Then re-run: yalc-gtm describe-change <pr-url>");
+    process.exit(1);
   }
 
-  console.log('[describe-change] Claude CLI installed.')
+  console.log("[describe-change] Claude CLI installed.");
 }
 
 function ensureClaudeAuth() {
   try {
     execSync('claude -p "ping" --dangerously-skip-permissions 2>&1', {
-      stdio: 'pipe',
+      stdio: "pipe",
       timeout: 15_000,
-    })
+    });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    const isAuthError = /api.?key|authenticate|login|unauthorized|401/i.test(msg)
+    const msg = err instanceof Error ? err.message : String(err);
+    const isAuthError = /api.?key|authenticate|login|unauthorized|401/i.test(msg);
 
     if (isAuthError) {
-      console.log('\n[describe-change] You need to log in to Claude.')
-      console.log('         Follow the prompts below to authenticate.\n')
-      const login = spawnSync('claude', ['auth', 'login'], {
-        stdio: 'inherit',
+      console.log("\n[describe-change] You need to log in to Claude.");
+      console.log("         Follow the prompts below to authenticate.\n");
+      const login = spawnSync("claude", ["auth", "login"], {
+        stdio: "inherit",
         shell: IS_WIN,
-      })
+      });
       if (login.status !== 0) {
-        console.error('[describe-change] Claude login failed or was cancelled.')
-        process.exit(1)
+        console.error("[describe-change] Claude login failed or was cancelled.");
+        process.exit(1);
       }
     }
     // Non-auth errors (e.g. timeout on slow machines) — let the main run proceed

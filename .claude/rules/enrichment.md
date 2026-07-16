@@ -10,13 +10,24 @@ Applies to: `src/lib/enrichment/`, `src/lib/providers/`, `configs/mcp/`
 ## Enrichment Recipes
 - `docs/enrichment/country-footprint-recipe.md` — verified Firecrawl + LLM-validation + LinkedIn-fallback cascade for "how many countries does Company X operate in." Use this whenever an ICP filter gates on multi-country presence. Do NOT use LLM prior knowledge for the count itself.
 
-## People Sourcing Method
-For sourcing named individuals at target companies, use this priority order (do NOT default to Firecrawl Google scraping):
-1. **Crustdata `searchPeople`** (`src/lib/services/crustdata.ts`) — structured filter by `companyNames` + `titles` + `seniorityLevels` + `location`. Current-employer guaranteed. 1 credit per result.
-2. **Clay `find-and-enrich-contacts-at-company`** (MCP) — multi-source, returns LinkedIn-verified contacts + emails. Use for enrichment / email backfill on the final shortlist.
-3. **Firecrawl Google + Unipile verify** (the C8 pattern in `scripts/c8-source-tier1-and-alliances.ts`) — fallback only. Use when Crustdata + Clay come up short for niche titles.
+## Company Sourcing Method
+For finding companies (lead-list / target-account building), use this priority order (updated 2026-07-16):
+1. **Current default: Exa or Linkup.** Use for all company sourcing until Apollo / AI Ark are configured in this environment.
+2. **Future default (once Apollo / AI Ark are configured): Apollo or AI Ark become the only primary tools.** Exa and Linkup drop to backup status — use them only when Apollo/AI Ark return no qualified results for the given ICP.
 
-Align on the chosen tool at campaign start. The C8 pattern was Firecrawl-first because we hadn't audited alternatives — that's not a precedent to copy.
+## People Sourcing Method
+For sourcing named individuals at target companies, use this priority order (updated 2026-07-16 — replaces the previous Crustdata/Clay/Firecrawl order):
+1. **Apollo**
+2. **AI Ark**
+3. **FullEnrich**
+
+Align on the chosen tool at campaign start.
+
+## Contact Enrichment Method (Email / Phone)
+When the task is specifically finding an email address or phone number for an already-identified person, use **FullEnrich or BetterEnrich only** (added 2026-07-16). No other provider is authorized for email/phone lookup, even if it also offers that capability.
+
+## Social & Ads Scraping Method
+For scraping Facebook Ads Library, likes, comments, posts, or any other social platform content, use **Apify** (added 2026-07-16). Do not attempt direct scraping of these surfaces via WebFetch/curl — they are JS-rendered and bot-protected; route through an Apify actor instead.
 
 ## Hard Rules
 1. **All enrichment goes through the provider registry** (`src/lib/providers/registry.ts`). Never call external APIs directly.

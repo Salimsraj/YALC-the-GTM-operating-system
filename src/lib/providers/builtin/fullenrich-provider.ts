@@ -25,11 +25,13 @@ export class FullEnrichProvider implements StepExecutor {
       return { status: 'warn', detail: 'FULLENRICH_API_KEY not set' }
     }
     try {
-      const resp = await fetch('https://api.fullenrich.com/v1/credits', {
+      const resp = await fetch('https://app.fullenrich.com/api/v1/contact/enrich/bulk', {
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${process.env.FULLENRICH_API_KEY}`,
-          Accept: 'application/json',
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ contacts: [] }),
         signal: AbortSignal.timeout(10000),
       })
       if (resp.ok) return { status: 'ok', detail: 'credits endpoint reachable' }

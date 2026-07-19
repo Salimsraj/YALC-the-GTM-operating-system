@@ -62,6 +62,7 @@ export async function registerBuiltinSkills(registry: SkillRegistry): Promise<vo
   const { competitiveIntelSkill } = await import('./builtin/competitive-intel')
   const { findPeopleSkill } = await import('./builtin/find-people')
   const { researchSkill } = await import('./builtin/research')
+  const { lostDealRevivalSkill } = await import('./builtin/lost-deal-revival')
 
   registry.register(findCompaniesSkill)
   registry.register(enrichLeadsSkill)
@@ -80,6 +81,7 @@ export async function registerBuiltinSkills(registry: SkillRegistry): Promise<vo
   registry.register(competitiveIntelSkill)
   registry.register(findPeopleSkill)
   registry.register(researchSkill)
+  registry.register(lostDealRevivalSkill)
 
   // Load community skills from ~/.gtm-os/skills/ (JSON-based)
   const { loadCommunitySkills } = await import('../marketplace/loader')

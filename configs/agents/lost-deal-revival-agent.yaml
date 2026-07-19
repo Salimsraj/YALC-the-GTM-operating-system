@@ -1,0 +1,7 @@
+# SETUP ENTRY POINT
+# Watcher framework emits pair fires, this agent handles revival drafting.
+id: lost-deal-revival-agent
+source: signal-pair-watcher
+skillId: lost-deal-revival-agent
+mode: on-demand
+description: Draft revival messages when objection/signal pairs fire.

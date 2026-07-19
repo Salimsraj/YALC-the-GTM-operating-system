@@ -7,17 +7,20 @@ describe('icp-company-search adapters', () => {
   beforeEach(() => {
     prevEnv = {
       CRUSTDATA_API_KEY: process.env.CRUSTDATA_API_KEY,
+      FORCE: process.env.FORCE,
     }
     vi.restoreAllMocks()
   })
 
   afterEach(() => {
     process.env.CRUSTDATA_API_KEY = prevEnv.CRUSTDATA_API_KEY
+    process.env.FORCE = prevEnv.FORCE
     vi.restoreAllMocks()
   })
 
   it('crustdata adapter calls autocomplete_filter BEFORE company_search_db', async () => {
     process.env.CRUSTDATA_API_KEY = 'test-key-1234567890123456789012345'
+    process.env.FORCE = '1'
     const callOrder: string[] = []
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
       const u = typeof url === 'string' ? url : url instanceof URL ? url.toString() : (url as Request).url

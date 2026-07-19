@@ -46,6 +46,10 @@ npx tsx src/cli/index.ts <command> [options]
 ```
 Env loaded from `.env.local`. Use `--tenant <slug>` or `GTM_OS_TENANT` env var for multi-tenant (default: `default`).
 
+## Working Style
+
+- Prefer local, file-scoped, or command-scoped investigation first. Avoid broad repo exploration when a single file, symbol, command, or route can answer the question.
+
 ## Lemlist integration
 
 YALC ships with 24 curated [lemlist Claude Code skills](https://www.lemlist.com/claude-skills) under `.claude/skills/lemlist/`, plus a flagship orchestration skill at `.claude/skills/lemlist-campaign-from-icp/` and a lemlist MCP server pre-declared in `.mcp.json`. Together they cover the full outbound loop inside Claude Code: ICP → personas → sourcing → agentic enrichment → seniority-routed sequencing → quality gate → paused campaign in lemlist.

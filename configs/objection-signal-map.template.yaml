@@ -1,0 +1,11 @@
+# Default objection -> signal compatibility map for lost-deal revival.
+pricing:
+  - funding_round
+headcount:
+  - hiring_surge
+timing:
+  - quarter_start
+integration:
+  - tech_stack_change
+competitor:
+  - competitor_customer_churn

@@ -20,9 +20,12 @@ Applies to: `src/lib/campaign/`, `src/lib/skills/builtin/track-campaign.ts`
 
 ## List-build Rules
 1. **5 leads per company hard-cap** by default for any campaign list-build. Over-source 3-5×, rank, keep top 5. Ranking signals (priority order): exact title match → seniority level → tenure at company → HQ-country office → recent LinkedIn activity. Confirm with user at campaign start before sourcing if a different cap is needed.
-2. **Sourcing method preference:** Crustdata `searchPeople` first (structured B2B database, 1 credit per result, current-employer guaranteed), Clay `find-and-enrich-contacts-at-company` second (multi-source, returns emails), Firecrawl Google + Unipile verify as fallback only. Align on tool at campaign start before running anything.
+2. **Sourcing method preference (updated 2026-07-16):** Companies — Exa or Linkup for now; Apollo or AI Ark become the only primary tools once configured, with Exa/Linkup dropping to backup-only for when they return nothing. People — Apollo first, AI Ark second, FullEnrich third. Email/phone lookup — FullEnrich or BetterEnrich only, no other provider. Social/ads scraping (Facebook Ads Library, likes, comments, posts) — Apify. Align on tool at campaign start before running anything. Full detail in `.claude/rules/enrichment.md`.
 3. **Persona-specific filters** must be agreed up-front and saved in the campaign's source script. Examples: "global payroll only, never bare Head of Payroll" (datascalehr) — see `feedback_global_payroll_roles.md`.
 4. **Pre-flight credit display + caching** — every list-build script must, on startup, print credit balances for all providers it will touch (Crustdata, Clay, Firecrawl, Unipile, etc.) and flag any below ~3× estimated burn. Every external API response must be cached on the first call into `data/scrapes/<campaign>/<provider>-cache/<key>.json`. `FORCE=1` env bypasses cache. See `feedback_credit_check_and_caching.md`.
+
+## Copywriting Workflow (added 2026-07-16)
+When writing any outbound message, use the copywriting skills already in this repo (`.claude/skills/lemlist/copywriting-first-touch`, `copywriting-follow-up`, `copywriting-vp-sequence`, `copywriting-manager-sequence`, `copywriting-ic-sequence`, `copywriting-refiner`, `cta-designer`) and follow their doctrine exactly — do not freehand copy that skips their structure. Never copy-paste raw research findings (stats, funding numbers, founder bios, review quotes) directly into the message body — that's what makes copy read as AI-generated. Research findings inform email 2+ (root cause / proof), not the email 1 opener. Run every draft against `copywriting-refiner`'s 8-point checklist before presenting it.
 
 ## Key Files
 | File | Purpose |

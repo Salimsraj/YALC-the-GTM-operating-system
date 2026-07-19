@@ -155,6 +155,10 @@ export async function registerBuiltinProviders(registry: ProviderRegistry): Prom
   const { InstantlyProvider } = await import('./builtin/instantly-provider')
   const { OrthogonalProvider } = await import('./builtin/orthogonal-provider')
   const { ResearchProvider } = await import('./builtin/research-provider')
+  const { ColdIQProvider } = await import('./builtin/coldiq-provider')
+  const { ApifyProvider } = await import('./builtin/apify-provider')
+  const { LinkupProvider } = await import('./builtin/linkup-provider')
+  const { ProspeoProvider } = await import('./builtin/prospeo-provider')
 
   registry.register(new MockProvider())
   registry.register(new QualifyProvider())
@@ -166,6 +170,10 @@ export async function registerBuiltinProviders(registry: ProviderRegistry): Prom
   registry.register(new InstantlyProvider())
   registry.register(new OrthogonalProvider())
   registry.register(new ResearchProvider())
+  registry.register(new ColdIQProvider())
+  registry.register(new ApifyProvider())
+  registry.register(new LinkupProvider())
+  registry.register(new ProspeoProvider())
 }
 
 /**

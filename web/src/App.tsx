@@ -9,6 +9,7 @@ import { KeysConnect } from './pages/KeysConnect'
 import { Skills } from './pages/Skills'
 import { Visualizations } from './pages/Visualizations'
 import { Dashboard } from './pages/Dashboard'
+import Chat from './pages/Chat'
 import { resolveTodayRedirect } from './lib/dashboard-redirect'
 
 // Minimal client-side routing. We intentionally avoid pulling in
@@ -53,6 +54,7 @@ export function App() {
 
   if (path.startsWith('/brand')) return <BrandKit />
   if (path.startsWith('/setup/review')) return <SetupReview />
+  if (path.startsWith('/chat')) return <Chat />
   if (path.startsWith('/dashboard/')) {
     const id = path.split('/')[2]?.toLowerCase()
     if (id === 'a' || id === 'b' || id === 'c' || id === 'd') {

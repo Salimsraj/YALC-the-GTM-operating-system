@@ -23,6 +23,7 @@ import { gatesRoutes } from './routes/gates'
 import { visualizeApiRoutes, visualizePageRoutes } from './routes/visualize'
 import { dashboardRoutes } from './routes/dashboard'
 import { orchestrateRoutes } from './routes/orchestrate'
+import { chatRoutes } from './routes/chat'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -95,6 +96,7 @@ export function createApp() {
   app.route('/api/gates', gatesRoutes)
   app.route('/api/visualize', visualizeApiRoutes)
   app.route('/api/dashboard', dashboardRoutes)
+  app.route('/api/chat', chatRoutes)
   app.route('/api', orchestrateRoutes)
 
   // Generated visualization page — serves saved HTML from

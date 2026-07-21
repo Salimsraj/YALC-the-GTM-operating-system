@@ -9,7 +9,7 @@ import { KeysConnect } from './pages/KeysConnect'
 import { Skills } from './pages/Skills'
 import { Visualizations } from './pages/Visualizations'
 import { Dashboard } from './pages/Dashboard'
-import Chat from './pages/Chat'
+import { Chat } from './pages/Chat'
 import { resolveTodayRedirect } from './lib/dashboard-redirect'
 
 // Minimal client-side routing. We intentionally avoid pulling in

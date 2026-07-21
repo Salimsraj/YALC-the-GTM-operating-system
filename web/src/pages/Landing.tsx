@@ -8,6 +8,7 @@
  * in 1.0.0.
  */
 const PRIMARY: Array<{ href: string; title: string; subtitle: string }> = [
+  { href: '/chat', title: 'Chat', subtitle: 'Ask for GTM data in plain English' },
   { href: '/today', title: 'Today', subtitle: 'Latest framework runs and pending gates' },
   { href: '/brain', title: 'Brain', subtitle: 'Live company context, voice, and ICP' },
   { href: '/keys', title: 'Keys', subtitle: 'Provider status and health probes' },

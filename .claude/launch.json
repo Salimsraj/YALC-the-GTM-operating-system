@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gtm-os-api",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "scripts/dev-server.mjs", "3847"],
+      "port": 3847
+    },
+    {
+      "name": "gtm-os-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "web", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}

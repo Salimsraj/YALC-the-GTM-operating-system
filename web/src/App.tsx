@@ -10,6 +10,9 @@ import { Skills } from './pages/Skills'
 import { Visualizations } from './pages/Visualizations'
 import { Dashboard } from './pages/Dashboard'
 import { Chat } from './pages/Chat'
+import { Home } from './pages/Home'
+import { Dashboards } from './pages/Dashboards'
+import { GraphDemo } from './pages/GraphDemo'
 import { resolveTodayRedirect } from './lib/dashboard-redirect'
 
 // Minimal client-side routing. We intentionally avoid pulling in
@@ -55,6 +58,8 @@ export function App() {
   if (path.startsWith('/brand')) return <BrandKit />
   if (path.startsWith('/setup/review')) return <SetupReview />
   if (path.startsWith('/chat')) return <Chat />
+  if (path.startsWith('/graph-demo')) return <GraphDemo />
+  if (path.startsWith('/dashboards')) return <Dashboards />
   if (path.startsWith('/dashboard/')) {
     const id = path.split('/')[2]?.toLowerCase()
     if (id === 'a' || id === 'b' || id === 'c' || id === 'd') {
@@ -65,7 +70,11 @@ export function App() {
   if (path.startsWith('/brain')) return <Brain />
   if (path.startsWith('/keys/connect')) return <KeysConnect />
   if (path.startsWith('/keys')) return <Keys />
-  if (path.startsWith('/skills')) return <Skills />
+  if (path.startsWith('/skills')) {
+    window.history.replaceState(null, '', '/chat')
+    return <Chat />
+  }
   if (path.startsWith('/visualizations')) return <Visualizations />
+  if (path === '/') return <Home />
   return <Landing />
 }

@@ -1,0 +1,12 @@
+id: prospeo
+display_name: prospeo
+integration_kind: rest
+env_vars:
+  - name: PROSPEO_API_KEY
+    description: Custom provider env var (set via /keys/connect).
+    example: ''
+    required: true
+capabilities_supported: []
+install_steps:
+  - Custom provider — env vars are set in ~/.gtm-os/.env via /keys/connect.
+test_query: null

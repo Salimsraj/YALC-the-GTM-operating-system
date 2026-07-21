@@ -107,16 +107,27 @@ export class LinkupService {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/health`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        signal: AbortSignal.timeout(10000),
-      })
+      // Try a simple search query to validate the API key
+      const response = await fetch(
+        `${this.baseUrl}/search?q=test&limit=1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Accept': 'application/json',
+          },
+          signal: AbortSignal.timeout(5000),
+        }
+      )
 
       if (response.ok) {
         return { ok: true, message: 'LinkUp API is healthy' }
       }
+
+      if (response.status === 401) {
+        return { ok: false, message: 'Invalid API key' }
+      }
+
+      return { ok: false, message: `API error: ${response.status}` }
       if (response.status === 401 || response.status === 403) {
         return { ok: false, message: 'LinkUp API key invalid' }
       }

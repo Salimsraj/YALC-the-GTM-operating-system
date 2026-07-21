@@ -151,20 +151,15 @@ export function Skills() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-12">
-      <div className="max-w-3xl mx-auto space-y-6">
-        <header>
-          <p className={eyebrowClass}>Skills</p>
-          <h1 className="font-heading text-3xl font-bold tracking-tight">Skill catalog</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Bundled and user-defined skills available to the runner.
-          </p>
-        </header>
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <aside className="w-56 shrink-0 border-r border-border bg-card flex flex-col h-screen sticky top-0">
+        <div className="p-6 border-b border-border">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Skills</p>
+          <h2 className="font-heading font-bold text-lg mt-1">Catalog</h2>
+        </div>
 
-        <div
-          role="tablist"
-          className="inline-flex flex-wrap gap-1 rounded-md bg-card border border-border p-1"
-        >
+        <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
           {(['all', ...CATEGORIES] as Array<'all' | Category>).map((c) => (
             <button
               key={c}
@@ -172,66 +167,105 @@ export function Skills() {
               data-testid={`skills-tab-${c}`}
               aria-selected={activeCategory === c}
               onClick={() => setActiveCategory(c)}
-              className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium font-heading transition-colors ${
+              className={`w-full text-left text-sm px-3 py-2 rounded-md transition-colors font-medium ${
                 activeCategory === c
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'text-muted-foreground hover:bg-background'
               }`}
             >
-              {c === 'all' ? 'All' : labelOf(c)}
+              {c === 'all' ? 'All Skills' : labelOf(c)}
             </button>
           ))}
-        </div>
+        </nav>
+      </aside>
 
-        {listError && (
-          <Card>
-            <CardContent className="pt-6 text-sm text-destructive">{listError}</CardContent>
-          </Card>
-        )}
+      {/* Main content */}
+      <main className="flex-1 min-w-0 p-8">
+        <div className="max-w-5xl space-y-8">
+          <header>
+            <h1 className="font-heading text-3xl font-bold tracking-tight">Skill catalog</h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              Bundled and user-defined skills available to the runner.
+            </p>
+          </header>
 
-        {list && filtered.length === 0 && (
-          <Card>
-            <CardContent className="pt-6 text-sm" data-testid="skills-empty">
-              No skills in this category.
-            </CardContent>
-          </Card>
-        )}
+          {listError && (
+            <Card>
+              <CardContent className="pt-6 text-sm text-destructive">{listError}</CardContent>
+            </Card>
+          )}
 
-        <div className="space-y-3">
-          {filtered.map((s) => (
-            <Card key={s.id} data-testid={`skills-card-${s.id}`}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-lg">{s.name}</CardTitle>
-                    <CardDescription className="font-mono text-xs">
-                      {s.id} · v{s.version}
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">
-                    {labelOf(s.category)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">{s.description}</p>
-                <div className="mt-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    data-testid={`skills-open-${s.id}`}
-                    onClick={() => pushPath(`/skills/${encodeURIComponent(s.id)}`)}
-                  >
-                    Open
-                  </Button>
-                </div>
+          {list && filtered.length === 0 && (
+            <Card>
+              <CardContent className="pt-6 text-sm text-muted-foreground" data-testid="skills-empty">
+                No skills in this category.
               </CardContent>
             </Card>
-          ))}
+          )}
+
+          {/* Skills by category section */}
+          {filtered.length > 0 && (
+            <div className="space-y-6">
+              {groupSkillsByCategory(filtered).map(([category, categorySkills]) => (
+                <div key={category} className="space-y-3">
+                  <div className="px-1">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      {labelOf(category)}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {categorySkills.map((s) => (
+                      <div
+                        key={s.id}
+                        data-testid={`skills-card-${s.id}`}
+                        className="flex items-start gap-4 p-4 rounded-lg border border-border hover:border-foreground/20 hover:bg-background/50 transition-colors"
+                      >
+                        {/* Icon placeholder */}
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+                          </svg>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <div>
+                              <h3 className="font-semibold text-sm text-foreground">{s.name}</h3>
+                              <p className="font-mono text-xs text-muted-foreground">{s.id}</p>
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-3">{s.description}</p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            data-testid={`skills-open-${s.id}`}
+                            onClick={() => pushPath(`/skills/${encodeURIComponent(s.id)}`)}
+                          >
+                            Open
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   )
+}
+
+function groupSkillsByCategory(skills: SkillSummary[]): Array<[string, SkillSummary[]]> {
+  const grouped = new Map<string, SkillSummary[]>()
+  skills.forEach((skill) => {
+    const cat = skill.category || 'other'
+    if (!grouped.has(cat)) grouped.set(cat, [])
+    grouped.get(cat)!.push(skill)
+  })
+  return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
 }
 
 interface DetailProps {
@@ -325,86 +359,93 @@ export function SkillDetailPage({ id, skill, error, onBack }: DetailProps) {
   }
 
   return (
-    <main className="min-h-screen px-6 py-12">
-      <div className="max-w-3xl mx-auto space-y-6">
-        <Button variant="outline" size="sm" onClick={onBack} data-testid="skills-detail-back">
-          ← Back
-        </Button>
-        {error && (
-          <Card>
-            <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
-          </Card>
-        )}
-        {skill && (
-          <>
-            <header>
-              <p className={eyebrowClass}>{skill.category}</p>
-              <h1 className="font-heading text-3xl font-bold tracking-tight">{skill.name}</h1>
-              <p className="font-mono text-xs text-muted-foreground mt-1">{skill.id} · v{skill.version}</p>
-              <p className="text-sm mt-2">{skill.description}</p>
-            </header>
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <aside className="w-56 shrink-0 border-r border-border bg-card flex flex-col h-screen sticky top-0">
+        <div className="p-6 border-b border-border">
+          <Button variant="outline" size="sm" onClick={onBack} data-testid="skills-detail-back" className="w-full">
+            ← Back
+          </Button>
+        </div>
+      </aside>
 
+      {/* Main content */}
+      <main className="flex-1 min-w-0 p-8">
+        <div className="max-w-5xl space-y-6">
+          {error && (
             <Card>
-              <CardHeader>
-                <CardTitle>Run with these inputs</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(skill.inputSchema?.properties &&
-                  Object.keys(skill.inputSchema.properties).length === 0) && (
-                  <p className="text-xs text-muted-foreground">No declared inputs.</p>
-                )}
-                <SkillInputForm
-                  skillId={skill.id}
-                  schema={skill.inputSchema}
-                  values={inputs}
-                  errors={errors}
-                  onChange={(next) => {
-                    setInputs(next)
-                    // Clear field-level errors as the user edits.
-                    if (Object.keys(errors).length > 0) setErrors({})
-                  }}
-                  forceJson={forceJson}
-                  jsonText={jsonText}
-                  onJsonTextChange={(t) => {
-                    setJsonText(t)
-                    if (jsonError) setJsonError(null)
-                  }}
-                  jsonError={jsonError}
-                  allowJsonToggle={!schemaUnsupported}
-                  onToggleJson={() => setForceJson((v) => !v)}
-                />
-                <Button
-                  variant="default"
-                  size="sm"
-                  data-testid="skills-run"
-                  disabled={runBusy}
-                  onClick={handleRun}
-                >
-                  {runBusy ? 'Running…' : 'Run'}
-                </Button>
-                {runError && (
-                  <p className="text-xs text-destructive" data-testid="skills-run-error">
-                    {runError}
-                  </p>
-                )}
-                {runResult && (
-                  <pre data-testid="skills-run-result" className={preBlockClass}>
-                    {JSON.stringify(runResult, null, 2)}
-                  </pre>
-                )}
-              </CardContent>
+              <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
             </Card>
+          )}
+          {skill && (
+            <>
+              <header>
+                <p className={eyebrowClass}>{skill.category}</p>
+                <h1 className="font-heading text-3xl font-bold tracking-tight">{skill.name}</h1>
+                <p className="font-mono text-xs text-muted-foreground mt-1">{skill.id} · v{skill.version}</p>
+                <p className="text-sm mt-2">{skill.description}</p>
+              </header>
 
-            {skill.bodyPreview && (
-              <pre data-testid="skills-body-preview" className={preBlockClass}>
-                {skill.bodyPreview}
-              </pre>
-            )}
-          </>
-        )}
-        {/* Quiet placeholder until detail loads. */}
-        {!skill && !error && <p className="text-sm text-muted-foreground">Loading {id}…</p>}
-      </div>
-    </main>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Run with these inputs</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(skill.inputSchema?.properties &&
+                    Object.keys(skill.inputSchema.properties).length === 0) && (
+                    <p className="text-xs text-muted-foreground">No declared inputs.</p>
+                  )}
+                  <SkillInputForm
+                    skillId={skill.id}
+                    schema={skill.inputSchema}
+                    values={inputs}
+                    errors={errors}
+                    onChange={(next) => {
+                      setInputs(next)
+                      if (Object.keys(errors).length > 0) setErrors({})
+                    }}
+                    forceJson={forceJson}
+                    jsonText={jsonText}
+                    onJsonTextChange={(t) => {
+                      setJsonText(t)
+                      if (jsonError) setJsonError(null)
+                    }}
+                    jsonError={jsonError}
+                    allowJsonToggle={!schemaUnsupported}
+                    onToggleJson={() => setForceJson((v) => !v)}
+                  />
+                  <Button
+                    variant="default"
+                    size="sm"
+                    data-testid="skills-run"
+                    disabled={runBusy}
+                    onClick={handleRun}
+                  >
+                    {runBusy ? 'Running…' : 'Run'}
+                  </Button>
+                  {runError && (
+                    <p className="text-xs text-destructive" data-testid="skills-run-error">
+                      {runError}
+                    </p>
+                  )}
+                  {runResult && (
+                    <pre data-testid="skills-run-result" className={preBlockClass}>
+                      {JSON.stringify(runResult, null, 2)}
+                    </pre>
+                  )}
+                </CardContent>
+              </Card>
+
+              {skill.bodyPreview && (
+                <pre data-testid="skills-body-preview" className={preBlockClass}>
+                  {skill.bodyPreview}
+                </pre>
+              )}
+            </>
+          )}
+          {!skill && !error && <p className="text-sm text-muted-foreground">Loading {id}…</p>}
+        </div>
+      </main>
+    </div>
   )
 }

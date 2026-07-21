@@ -1,0 +1,25 @@
+id: orthogonal
+display_name: "Orthogonal"
+homepage: https://orthogonal.com
+docs_url: https://docs.orthogonal.com/api
+key_acquisition_url: https://console.orthogonal.com/api-keys
+integration_kind: rest
+mcp_template: null
+env_vars:
+  - name: ORTHOGONAL_API_KEY
+    description: "Orthogonal API key. Universal API gateway for 100+ data providers."
+    example: "orth_1234567890abcdefghijklmnop"
+    required: true
+capabilities_supported:
+  - id: enrichment
+    adapter_module: src/lib/providers/adapters/enrichment-orthogonal.ts
+  - id: search
+    adapter_module: src/lib/providers/adapters/search-orthogonal.ts
+install_steps:
+  - "Sign up at $homepage if you don't have an account."
+  - "Get your API key from $key_acquisition_url"
+  - "Paste your key in the form at http://localhost:3847/keys"
+test_query:
+  capability: search
+  input:
+    query: "test"

@@ -38,10 +38,9 @@ export function BrandKit() {
         </p>
         <h1 className="font-heading text-5xl font-bold tracking-tight mb-3">
           <span
-            className="bg-clip-text text-transparent"
-            style={{ backgroundImage: 'var(--brand-gradient)' }}
+            className="text-orange-500"
           >
-            YALC
+            Outbound OS
           </span>{' '}
           design tokens
         </h1>

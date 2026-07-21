@@ -1,0 +1,25 @@
+id: apify
+display_name: "Apify"
+homepage: https://apify.com
+docs_url: https://docs.apify.com/api
+key_acquisition_url: https://console.apify.com/account/integrations
+integration_kind: rest
+mcp_template: null
+env_vars:
+  - name: APIFY_API_KEY
+    description: "Apify API key. Authorizes web scraping, data extraction, and automation tasks."
+    example: "apk_1234567890abcdefghijklmnop"
+    required: true
+capabilities_supported:
+  - id: web-scrape
+    adapter_module: src/lib/providers/adapters/web-scrape-apify.ts
+  - id: data-extract
+    adapter_module: src/lib/providers/adapters/data-extract-apify.ts
+install_steps:
+  - "Sign up at $homepage if you don't have an account."
+  - "Get your API token from $key_acquisition_url"
+  - "Paste your token in the form at http://localhost:3847/keys"
+test_query:
+  capability: web-scrape
+  input:
+    url: "https://example.com"

@@ -1,5 +1,5 @@
 /**
- * /api/brain/* — read-only context viewer for the SPA's /brain page.
+ * /api/brain/* — read-only context viewer and ingestion coordinator for the SPA's /brain page.
  *
  * Walks the live tenant tree and returns every section that exists, plus
  * any per-section confidence metadata.
@@ -16,6 +16,10 @@
  * Endpoints:
  *   GET  /api/brain/context              — list sections with rendered content
  *   POST /api/brain/regenerate/:section  — proxy to `start --regenerate`
+ *   GET  /api/brain/adapters             — list available data adapters
+ *   POST /api/brain/sync                 — run all available adapters
+ *   POST /api/brain/sync/:adapter        — run a specific adapter
+ *   GET  /api/brain/search               — semantic search across all memory
  */
 
 import { Hono } from 'hono'
@@ -31,8 +35,12 @@ import {
   type TenantContext,
 } from '../../onboarding/preview.js'
 import { DEFAULT_TENANT } from '../../tenant/index.js'
+import { brainExtractionRoutes } from './brain-extraction.js'
 
 export const brainRoutes = new Hono()
+
+// Mount extraction routes at /api/brain/extract/*
+brainRoutes.route('/extract', brainExtractionRoutes)
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -304,6 +312,167 @@ brainRoutes.post('/regenerate/:section', async (c) => {
       {
         error: 'regenerate_failed',
         message: err instanceof Error ? err.message : 'Regenerate failed',
+      },
+      400,
+    )
+  }
+})
+
+// ─── GET /api/brain/adapters ────────────────────────────────────────────────
+
+brainRoutes.get('/adapters', async (c) => {
+  const tenant = tenantFromQuery(c)
+  const { listAvailableAdapters, listAllAdapters } = await import('../../context/adapters/index.js')
+
+  const all = listAllAdapters()
+  const available = await listAvailableAdapters(tenant.tenantId)
+  const availableIds = new Set(available.map((a) => a.id))
+
+  return c.json({
+    tenant: tenant.tenantId,
+    adapters: all.map((a) => ({
+      id: a.id,
+      available: availableIds.has(a.id),
+    })),
+  })
+})
+
+// ─── POST /api/brain/sync ───────────────────────────────────────────────────
+
+brainRoutes.post('/sync', async (c) => {
+  const tenant = tenantFromQuery(c)
+  const { listAvailableAdapters } = await import('../../context/adapters/index.js')
+
+  const available = await listAvailableAdapters(tenant.tenantId)
+  const results: Record<string, { added: number; updated: number; removed: number; unchanged: number }> = {}
+
+  for (const adapter of available) {
+    try {
+      const result = await adapter.sync(tenant.tenantId)
+      results[adapter.id] = result
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      results[adapter.id] = { added: 0, updated: 0, removed: 0, unchanged: 0 }
+      // Log error but don't fail entire sync
+      console.error(`[brain:sync] Adapter ${adapter.id} error: ${msg}`)
+    }
+  }
+
+  const totals = Object.values(results).reduce(
+    (acc, r) => ({
+      added: acc.added + r.added,
+      updated: acc.updated + r.updated,
+      removed: acc.removed + r.removed,
+      unchanged: acc.unchanged + r.unchanged,
+    }),
+    { added: 0, updated: 0, removed: 0, unchanged: 0 },
+  )
+
+  return c.json({
+    ok: true,
+    tenant: tenant.tenantId,
+    results,
+    totals,
+  })
+})
+
+// ─── POST /api/brain/sync/:adapter ──────────────────────────────────────────
+
+brainRoutes.post('/sync/:adapter', async (c) => {
+  const tenant = tenantFromQuery(c)
+  const adapterId = c.req.param('adapter')
+  const { getAdapter } = await import('../../context/adapters/index.js')
+
+  const adapter = getAdapter(adapterId)
+  if (!adapter) {
+    return c.json(
+      {
+        error: 'unknown_adapter',
+        message: `Unknown adapter: ${adapterId}`,
+      },
+      404,
+    )
+  }
+
+  const isAvailable = await adapter.isAvailable(tenant.tenantId)
+  if (!isAvailable) {
+    return c.json(
+      {
+        error: 'adapter_unavailable',
+        message: `Adapter ${adapterId} is not available for this tenant`,
+      },
+      400,
+    )
+  }
+
+  try {
+    const result = await adapter.sync(tenant.tenantId)
+    return c.json({
+      ok: true,
+      adapter: adapterId,
+      tenant: tenant.tenantId,
+      result,
+    })
+  } catch (err) {
+    return c.json(
+      {
+        error: 'sync_failed',
+        message: err instanceof Error ? err.message : 'Sync failed',
+      },
+      400,
+    )
+  }
+})
+
+// ─── GET /api/brain/search ──────────────────────────────────────────────
+
+brainRoutes.get('/search', async (c) => {
+  const tenant = tenantFromQuery(c)
+  const query = c.req.query('q') || ''
+  const topK = parseInt(c.req.query('topK') || '10', 10)
+  const tokenBudget = parseInt(c.req.query('tokenBudget') || '4000', 10)
+
+  if (!query.trim()) {
+    return c.json(
+      {
+        error: 'empty_query',
+        message: 'Query parameter "q" is required and must not be empty',
+      },
+      400,
+    )
+  }
+
+  try {
+    const { MemoryStore } = await import('../../memory/store.js')
+    const { retrieve } = await import('../../memory/retrieve.js')
+
+    const store = new MemoryStore(tenant.tenantId)
+    const results = await retrieve(store, {
+      query,
+      topK,
+      tokenBudget,
+    })
+
+    return c.json({
+      ok: true,
+      query,
+      tenant: tenant.tenantId,
+      results: results.map((r) => ({
+        id: r.node.id,
+        content: r.node.content,
+        sourceType: r.node.sourceType,
+        sourceRef: r.node.sourceRef,
+        confidence: r.node.confidence,
+        confidenceScore: r.node.confidenceScore,
+        score: r.score,
+        reasons: r.reasons,
+      })),
+    })
+  } catch (err) {
+    return c.json(
+      {
+        error: 'search_failed',
+        message: err instanceof Error ? err.message : 'Search failed',
       },
       400,
     )

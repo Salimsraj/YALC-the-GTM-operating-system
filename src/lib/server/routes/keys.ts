@@ -56,6 +56,14 @@ function mapStatus(reg: 'active' | 'disconnected' | 'error'): KeyEntry['status']
 // ─── GET /api/keys/list ─────────────────────────────────────────────────────
 
 keysRoutes.get('/list', async (c) => {
+  // Reload .env to pick up any recently added keys
+  const home = process.env.HOME ?? homedir()
+  const gtmDir = join(home, '.gtm-os')
+  const envPath = join(gtmDir, '.env')
+  if (existsSync(envPath)) {
+    loadEnv({ path: envPath, quiet: true, override: true })
+  }
+
   const { getRegistryReady } = await import('../../providers/registry.js')
   const registry = await getRegistryReady()
   const all = registry.getAll()

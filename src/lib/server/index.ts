@@ -17,6 +17,7 @@ import { setupRoutes } from './routes/setup'
 import { todayRoutes } from './routes/today'
 import { brainRoutes } from './routes/brain'
 import { brainSectionRoutes } from './routes/brain-section'
+import { secondBrainRoutes } from './routes/second-brain'
 import { keysRoutes } from './routes/keys'
 import { skillsRoutes } from './routes/skills'
 import { gatesRoutes } from './routes/gates'
@@ -24,6 +25,7 @@ import { visualizeApiRoutes, visualizePageRoutes } from './routes/visualize'
 import { dashboardRoutes } from './routes/dashboard'
 import { orchestrateRoutes } from './routes/orchestrate'
 import { chatRoutes } from './routes/chat'
+import { lemlistRouter } from './routes/lemlist'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -91,12 +93,14 @@ export function createApp() {
   app.route('/api/today', todayRoutes)
   app.route('/api/brain', brainRoutes)
   app.route('/api/brain', brainSectionRoutes)
+  app.route('/api/second-brain', secondBrainRoutes)
   app.route('/api/keys', keysRoutes)
   app.route('/api/skills', skillsRoutes)
   app.route('/api/gates', gatesRoutes)
   app.route('/api/visualize', visualizeApiRoutes)
   app.route('/api/dashboard', dashboardRoutes)
   app.route('/api/chat', chatRoutes)
+  app.route('/api/lemlist', lemlistRouter())
   app.route('/api', orchestrateRoutes)
 
   // Generated visualization page — serves saved HTML from

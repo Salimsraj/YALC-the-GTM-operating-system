@@ -10,7 +10,6 @@ import {
   Brain,
   Home,
   KeyRound,
-  Layers,
   MessageSquare,
   PanelLeft,
   PanelLeftClose,
@@ -29,11 +28,11 @@ interface ConversationSummary {
 
 const PRIMARY_LINKS = [
   { href: '/', label: 'Home', icon: Home },
+  { href: '/dashboards', label: 'Dashboards', icon: BarChart3 },
   { href: '/chat', label: 'Chats', icon: MessageSquare },
 ]
 
 const SECONDARY_LINKS = [
-  { href: '/skills', label: 'Browse Skills', icon: Layers },
   { href: '/today', label: 'Today', icon: Sun },
   { href: '/brain', label: 'Brain', icon: Brain },
   { href: '/visualizations', label: 'Visualizations', icon: BarChart3 },
@@ -71,6 +70,7 @@ export interface AppShellProps {
   activeConversationId: string | null
   onSelectConversation: (id: string) => void
   onNewConversation: () => void
+  onSkillClick?: (skillId: string, skillName: string) => void
   refreshKey?: number
   children: React.ReactNode
 }
@@ -79,6 +79,7 @@ export function AppShell({
   activeConversationId,
   onSelectConversation,
   onNewConversation,
+  onSkillClick,
   refreshKey,
   children,
 }: AppShellProps) {
@@ -93,7 +94,7 @@ export function AppShell({
         if (!cancelled) setConversations(res.conversations ?? [])
       })
       .catch(() => {
-        // Best-effort — an empty recent list is fine.
+        // Best-effort — an empty conversation list is fine.
       })
     return () => {
       cancelled = true
@@ -117,10 +118,9 @@ export function AppShell({
           <div className="flex items-center justify-between px-5 py-4">
             <a href="/" className="flex items-center gap-2">
               <span
-                className="font-heading text-lg font-bold bg-clip-text text-transparent"
-                style={{ backgroundImage: 'var(--brand-gradient)' }}
+                className="font-heading text-lg font-bold text-orange-500"
               >
-                YALC
+                Outbound OS
               </span>
             </a>
             <button
@@ -140,11 +140,11 @@ export function AppShell({
             ))}
           </nav>
 
-          {/* Recent conversations */}
+          {/* Chat history */}
           <div className="px-3 pt-5 pb-2 flex-1 min-h-0 flex flex-col">
             <div className="flex items-center justify-between px-3 mb-1">
               <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                Recent conversations
+                Chat history
               </span>
               <button
                 type="button"

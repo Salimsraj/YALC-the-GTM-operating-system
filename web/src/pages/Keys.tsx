@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Search, Zap, Database } from 'lucide-react'
+import { Search, Zap, Database, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { describeError } from '@/lib/feedback'
 import { cn } from '@/lib/utils'
@@ -42,14 +42,14 @@ function statusBadge(status: KeyEntry['status']): { label: string; variant: stri
   return { label: 'Not connected', variant: 'bg-muted text-muted-foreground' }
 }
 
-function ProviderCard({ provider }: { provider: KeyEntry }) {
+function ProviderCard({
+  provider,
+  onConnect,
+}: {
+  provider: KeyEntry
+  onConnect: (providerId: string) => void
+}) {
   const badge = statusBadge(provider.status)
-  const handleConnect = () => {
-    if (typeof window !== 'undefined') {
-      window.location.href = `/keys/connect?provider=${encodeURIComponent(provider.id)}`
-    }
-  }
-
   const Icon = provider.id.includes('data') ? Database : Zap
 
   return (
@@ -69,7 +69,7 @@ function ProviderCard({ provider }: { provider: KeyEntry }) {
       <div className="flex items-center gap-2 shrink-0">
         <Button
           size="sm"
-          onClick={handleConnect}
+          onClick={() => onConnect(provider.id)}
           className="bg-orange-500 hover:bg-orange-600 text-white"
         >
           CONNECT
@@ -79,10 +79,117 @@ function ProviderCard({ provider }: { provider: KeyEntry }) {
   )
 }
 
+function ApiKeyModal({
+  providerId,
+  providerName,
+  onClose,
+}: {
+  providerId: string
+  providerName: string
+  onClose: () => void
+}) {
+  const [apiKey, setApiKey] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    if (!apiKey.trim()) {
+      setError('API key is required')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      // Map provider IDs to their env var names (from configs/providers/*.yaml)
+      const envVarMap: Record<string, string> = {
+        crustdata: 'CRUSTDATA_API_KEY',
+        instantly: 'INSTANTLY_API_KEY',
+        unipile: 'UNIPILE_DSN',
+        apollo: 'APOLLO_API_KEY',
+        'people-data-labs': 'PDL_API_KEY',
+        zoominfo: 'ZOOMINFO_API_KEY',
+        brevo: 'BREVO_API_KEY',
+        pappers: 'PAPPERS_API_KEY',
+        hubspot: 'HUBSPOT_ACCESS_TOKEN',
+        salesforce: 'SALESFORCE_ACCESS_TOKEN',
+        apify: 'APIFY_API_KEY',
+        firecrawl: 'FIRECRAWL_API_KEY',
+        fullenrich: 'FULLENRICH_API_KEY',
+        linkup: 'LINKUP_API_KEY',
+        orthogonal: 'ORTHOGONAL_API_KEY',
+        prospeo: 'PROSPEO_API_KEY',
+      }
+
+      const envVar = envVarMap[providerId.toLowerCase()] || `${providerId.toUpperCase()}_API_KEY`
+
+      await api.post('/api/keys/save', {
+        provider: providerId,
+        env: { [envVar]: apiKey },
+      })
+      // Wait a moment for the provider to initialize, then close
+      setTimeout(() => {
+        onClose()
+      }, 1000)
+    } catch (err) {
+      setError(describeError(err, 'Failed to save API key'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-card border border-border rounded-lg shadow-lg p-6 w-96">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading font-semibold text-base">{providerName}</h2>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground hover:bg-background transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              {providerName === 'Unipile' ? 'DSN (Data Source Name)' : 'API Key'}
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Enter your API key"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          {error && <p className="text-xs text-destructive">{error}</p>}
+
+          <div className="flex gap-2 justify-end pt-2">
+            <Button size="sm" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Keys() {
   const [data, setData] = useState<ListResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [modalProvider, setModalProvider] = useState<{ id: string; name: string } | null>(null)
 
   const reload = useCallback(async () => {
     setLoadError(null)
@@ -99,19 +206,22 @@ export function Keys() {
 
   const providers = data?.providers ?? []
 
-  const yourTools = providers.filter(
+  // Filter out internal/mock providers that don't need API keys
+  const configurable = providers.filter(p => !['qualify', 'research', 'mock'].includes(p.id))
+
+  const yourTools = configurable.filter(
     (p) =>
       ['instantly', 'lemlist', 'unipile', 'attio'].some((id) =>
         p.id.toLowerCase().includes(id),
       ),
   )
-  const dataProviders = providers.filter(
+  const dataProviders = configurable.filter(
     (p) =>
       ['crustdata', 'firecrawl', 'clay', 'apollo'].some((id) =>
         p.id.toLowerCase().includes(id),
       ) || p.id.includes('data'),
   )
-  const other = providers.filter(
+  const other = configurable.filter(
     (p) => !yourTools.includes(p) && !dataProviders.includes(p),
   )
 
@@ -182,7 +292,11 @@ export function Keys() {
               </p>
               <div className="space-y-2">
                 {filtered(yourTools).map((p) => (
-                  <ProviderCard key={p.id} provider={p} />
+                  <ProviderCard
+                    key={p.id}
+                    provider={p}
+                    onConnect={(id) => setModalProvider({ id, name: p.name })}
+                  />
                 ))}
               </div>
             </section>
@@ -199,7 +313,11 @@ export function Keys() {
               </p>
               <div className="space-y-2">
                 {filtered(dataProviders).map((p) => (
-                  <ProviderCard key={p.id} provider={p} />
+                  <ProviderCard
+                    key={p.id}
+                    provider={p}
+                    onConnect={(id) => setModalProvider({ id, name: p.name })}
+                  />
                 ))}
               </div>
             </section>
@@ -211,25 +329,41 @@ export function Keys() {
               <h2 className="font-heading text-base font-semibold">Other providers</h2>
               <div className="space-y-2">
                 {filtered(other).map((p) => (
-                  <ProviderCard key={p.id} provider={p} />
+                  <ProviderCard
+                    key={p.id}
+                    provider={p}
+                    onConnect={(id) => setModalProvider({ id, name: p.name })}
+                  />
                 ))}
               </div>
             </section>
           )}
 
-          {providers.length > 0 && filtered([...yourTools, ...dataProviders, ...other]).length === 0 && (
+          {configurable.length > 0 && filtered([...yourTools, ...dataProviders, ...other]).length === 0 && (
             <p className="text-center text-sm text-muted-foreground py-8">
               No providers match "{search}"
             </p>
           )}
 
-          {providers.length === 0 && !loadError && (
+          {configurable.length === 0 && !loadError && (
             <p className="text-center text-sm text-muted-foreground py-8">
               No providers configured yet.
             </p>
           )}
         </div>
       </main>
+
+      {/* API Key Modal */}
+      {modalProvider && (
+        <ApiKeyModal
+          providerId={modalProvider.id}
+          providerName={modalProvider.name}
+          onClose={() => {
+            setModalProvider(null)
+            reload()
+          }}
+        />
+      )}
     </div>
   )
 }

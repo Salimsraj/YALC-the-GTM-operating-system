@@ -1,0 +1,23 @@
+id: fullenrich
+display_name: "FullEnrich"
+homepage: https://fullenrich.com
+docs_url: https://docs.fullenrich.com/api
+key_acquisition_url: https://app.fullenrich.com/settings/api-keys
+integration_kind: rest
+mcp_template: null
+env_vars:
+  - name: FULLENRICH_API_KEY
+    description: "FullEnrich API key. Authorizes contact enrichment and email/phone lookup."
+    example: "fe_1234567890abcdefghijklmnop"
+    required: true
+capabilities_supported:
+  - id: contact-enrich
+    adapter_module: src/lib/providers/adapters/contact-enrich-fullenrich.ts
+install_steps:
+  - "Sign up at $homepage if you don't have an account."
+  - "Get your API key from $key_acquisition_url"
+  - "Paste your key in the form at http://localhost:3847/keys"
+test_query:
+  capability: contact-enrich
+  input:
+    email: "test@example.com"

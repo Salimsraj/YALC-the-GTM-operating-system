@@ -1,0 +1,24 @@
+id: linkup
+display_name: "Linkup"
+homepage: https://linkup.so
+docs_url: https://docs.linkup.so/api
+key_acquisition_url: https://app.linkup.so/dashboard/api-keys
+integration_kind: rest
+mcp_template: null
+env_vars:
+  - name: LINKUP_API_KEY
+    description: "Linkup API key. Authorizes real-time web search and data extraction."
+    example: "lu_1234567890abcdefghijklmnop"
+    required: true
+capabilities_supported:
+  - id: web-search
+    adapter_module: src/lib/providers/adapters/web-search-linkup.ts
+install_steps:
+  - "Sign up at $homepage if you don't have an account."
+  - "Get your API key from $key_acquisition_url"
+  - "Paste your key in the form at http://localhost:3847/keys"
+test_query:
+  capability: web-search
+  input:
+    query: "SaaS companies"
+    limit: 10

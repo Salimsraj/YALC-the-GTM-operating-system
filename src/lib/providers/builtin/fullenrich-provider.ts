@@ -25,20 +25,27 @@ export class FullEnrichProvider implements StepExecutor {
       return { status: 'warn', detail: 'FULLENRICH_API_KEY not set' }
     }
     try {
+      // Test with a minimal email lookup to validate the API key works
       const resp = await fetch('https://app.fullenrich.com/api/v1/contact/enrich/bulk', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${process.env.FULLENRICH_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ contacts: [] }),
+        body: JSON.stringify({
+          contacts: [{
+            firstname: 'test',
+            lastname: 'user',
+            domain: 'example.com',
+          }],
+        }),
         signal: AbortSignal.timeout(10000),
       })
-      if (resp.ok) return { status: 'ok', detail: 'credits endpoint reachable' }
+      if (resp.ok) return { status: 'ok', detail: 'email lookup API responding' }
       if (resp.status === 401 || resp.status === 403) {
         return { status: 'fail', detail: 'API key invalid' }
       }
-      // 404 still means auth worked — surface as warn
+      // 404 or other errors still mean auth was checked
       return { status: 'warn', detail: `HTTP ${resp.status} (auth check inconclusive)` }
     } catch (err) {
       return {

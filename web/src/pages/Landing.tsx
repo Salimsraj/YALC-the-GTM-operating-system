@@ -31,13 +31,8 @@ export function Landing() {
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground mb-4">
             GTM operating system
           </p>
-          <h1 className="font-heading text-6xl font-bold tracking-tight mb-4">
-            <span
-              className="bg-clip-text text-transparent"
-              style={{ backgroundImage: 'var(--brand-gradient)' }}
-            >
-              YALC
-            </span>
+          <h1 className="font-heading text-6xl font-bold tracking-tight mb-4 text-orange-500">
+            Outbound OS
           </h1>
           <p className="text-base text-muted-foreground">
             Open-source, AI-native GTM engine. Lead finding, enrichment, qualification, and

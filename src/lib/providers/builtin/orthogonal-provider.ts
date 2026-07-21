@@ -1,4 +1,4 @@
-import type { StepExecutor, RowBatch, ExecutionContext, WorkflowStepInput, ProviderCapability } from '../types'
+import type { StepExecutor, RowBatch, ExecutionContext, WorkflowStepInput, ProviderCapability, ProviderHealthStatus } from '../types'
 import type { ColumnDef } from '../../ai/types'
 import { orthogonalService } from '../../services/orthogonal'
 
@@ -19,6 +19,32 @@ export class OrthogonalProvider implements StepExecutor {
     // Or if user supplied an explicit api + path config (treated as explicit opt-in).
     if (step.config?.api && step.config?.path) return true
     return false
+  }
+
+  async selfHealthCheck(): Promise<ProviderHealthStatus> {
+    if (!process.env.ORTHOGONAL_API_KEY) {
+      return { status: 'warn', detail: 'ORTHOGONAL_API_KEY not set' }
+    }
+    try {
+      // Test by checking account balance — validates API key and connectivity
+      const balance = await Promise.race([
+        orthogonalService.getBalance(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout after 8s')), 8000),
+        ),
+      ])
+      const balanceNum = Number(balance.balance)
+      if (Number.isFinite(balanceNum) && balanceNum < 0.01) {
+        return { status: 'warn', detail: `balance very low ($${balance.balance})` }
+      }
+      return { status: 'ok', detail: `API responding, balance: $${balance.balance}` }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (/401|403|unauthorized|forbidden|invalid/i.test(msg)) {
+        return { status: 'fail', detail: 'API key invalid' }
+      }
+      return { status: 'fail', detail: msg }
+    }
   }
 
   async *execute(step: WorkflowStepInput, _context: ExecutionContext): AsyncIterable<RowBatch> {

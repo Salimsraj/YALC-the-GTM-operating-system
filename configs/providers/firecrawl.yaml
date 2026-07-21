@@ -1,0 +1,25 @@
+id: firecrawl
+display_name: "Firecrawl"
+homepage: https://firecrawl.dev
+docs_url: https://docs.firecrawl.dev
+key_acquisition_url: https://app.firecrawl.dev/account/api-keys
+integration_kind: rest
+mcp_template: null
+env_vars:
+  - name: FIRECRAWL_API_KEY
+    description: "Firecrawl API key. Authorizes web scraping and LLM-powered data extraction."
+    example: "fcrawl_1234567890abcdefghijklmnop"
+    required: true
+capabilities_supported:
+  - id: web-scrape
+    adapter_module: src/lib/providers/adapters/web-scrape-firecrawl.ts
+  - id: markdown-extract
+    adapter_module: src/lib/providers/adapters/markdown-extract-firecrawl.ts
+install_steps:
+  - "Sign up at $homepage if you don't have an account."
+  - "Get your API key from $key_acquisition_url"
+  - "Paste your key in the form at http://localhost:3847/keys"
+test_query:
+  capability: web-scrape
+  input:
+    url: "https://example.com"

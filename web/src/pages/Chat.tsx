@@ -1,5 +1,5 @@
 /**
- * /chat — natural-language surface over YALC's skill catalog (C-series).
+ * /chat — natural-language surface over Outbound OS's skill catalog (C-series).
  *
  * Modeled on the ColdIQ chat UI reference: a persistent sidebar (AppShell)
  * plus a centered transcript + input. Each send opens a fresh, one-shot
@@ -9,6 +9,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
+import { SecondBrain } from '@/components/SecondBrain'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -243,27 +244,29 @@ export function Chat() {
       activeConversationId={conversationId}
       onSelectConversation={(id) => void loadConversation(id)}
       onNewConversation={startNewConversation}
+      onSkillClick={(skillId, skillName) => {
+        setInput(skillName)
+      }}
       refreshKey={sidebarRefreshKey}
     >
-      <div className="min-h-screen flex flex-col">
-        <div className="flex-1 overflow-y-auto px-6 py-10">
-          <div className="max-w-2xl mx-auto space-y-6">
+      <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950">
+        <div className="flex-1 overflow-y-auto px-4 py-8">
+          <div className="max-w-3xl mx-auto space-y-0">
             {items.length === 0 && (
-              <div className="text-center py-16">
-                <h1 className="font-heading text-3xl font-bold tracking-tight mb-2">
-                  Ask for GTM data in plain English.
+              <div className="text-center py-20">
+                <h1 className="font-heading text-4xl font-bold tracking-tight mb-3 text-gray-900 dark:text-white">
+                  Ask for GTM data in plain English
                 </h1>
-                <p className="text-sm text-muted-foreground mb-8">
-                  Find companies, find people, enrich leads, qualify against your ICP, and more —
-                  from one chat.
+                <p className="text-base text-gray-600 dark:text-gray-400 mb-8 max-w-lg mx-auto">
+                  Find companies, find people, enrich leads, qualify against your ICP, and more — from one chat.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-xl mx-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
                   {SUGGESTIONS.map((s) => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => void handleSend(s)}
-                      className="text-left rounded-lg border border-border bg-card px-4 py-3 text-sm hover:shadow-md transition"
+                      className="text-left rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-300"
                     >
                       {s}
                     </button>
@@ -281,9 +284,13 @@ export function Chat() {
           </div>
         </div>
 
-        <div className="border-t border-border bg-card px-6 py-4">
+        <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-4">
+          <div className="max-w-3xl mx-auto mb-4">
+            <SecondBrain />
+          </div>
+
           <form
-            className="max-w-2xl mx-auto flex gap-2"
+            className="max-w-3xl mx-auto flex gap-3"
             onSubmit={(e) => {
               e.preventDefault()
               void handleSend(input)
@@ -298,12 +305,16 @@ export function Chat() {
                   void handleSend(input)
                 }
               }}
-              placeholder="Ask the YALC agent to find companies, people, emails, or run a skill..."
+              placeholder="Ask Outbound OS to find companies, people, emails, or run a skill..."
               rows={1}
               disabled={sending}
-              className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white disabled:opacity-50"
             />
-            <Button type="submit" disabled={sending || !input.trim()} variant="gradient">
+            <Button
+              type="submit"
+              disabled={sending || !input.trim()}
+              className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-4 py-3"
+            >
               {sending ? 'Working…' : 'Send'}
             </Button>
           </form>
@@ -324,13 +335,13 @@ function TranscriptCard({
 
   if (item.kind === 'text') {
     return (
-      <div className={isUser ? 'flex justify-end' : 'flex justify-start'}>
+      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
         <div
-          className={
+          className={`max-w-2xl ${
             isUser
-              ? 'max-w-[80%] rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm'
-              : 'max-w-[80%] rounded-lg bg-card border border-border px-4 py-2 text-sm'
-          }
+              ? 'bg-orange-500 text-white rounded-2xl px-4 py-2.5 text-sm'
+              : 'bg-gray-100 dark:bg-gray-800 text-foreground rounded-2xl px-4 py-2.5 text-sm'
+          }`}
         >
           {item.content}
         </div>

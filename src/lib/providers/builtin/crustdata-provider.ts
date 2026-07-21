@@ -90,7 +90,8 @@ export class CrustdataProvider implements StepExecutor {
   }
 
   /**
-   * Hits Crustdata's credit-check endpoint — cheapest authenticated call.
+   * Tests API key by executing a minimal company search with limit=1.
+   * This exercises the real search API and validates the key works.
    * 401/403 → fail (key invalid). 5xx → warn. Network failure → fail.
    */
   async selfHealthCheck(): Promise<ProviderHealthStatus> {
@@ -98,15 +99,18 @@ export class CrustdataProvider implements StepExecutor {
       return { status: 'warn', detail: 'CRUSTDATA_API_KEY not set' }
     }
     try {
-      const resp = await fetch('https://api.crustdata.com/screener/credit_check/', {
-        method: 'GET',
+      // Use a simple company search with limit=1 to test the API key works
+      const resp = await fetch('https://api.crustdata.com/v1/companies/search', {
+        method: 'POST',
         headers: {
           Authorization: `Token ${process.env.CRUSTDATA_API_KEY}`,
+          'Content-Type': 'application/json',
           Accept: 'application/json',
         },
+        body: JSON.stringify({ limit: 1, keywords: 'test' }),
         signal: AbortSignal.timeout(10000),
       })
-      if (resp.ok) return { status: 'ok', detail: 'credit_check endpoint reachable' }
+      if (resp.ok) return { status: 'ok', detail: 'search API responding' }
       if (resp.status === 401 || resp.status === 403) {
         return { status: 'fail', detail: `auth failed (HTTP ${resp.status})` }
       }

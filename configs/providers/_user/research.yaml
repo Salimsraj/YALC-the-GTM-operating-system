@@ -1,0 +1,12 @@
+id: research
+display_name: research
+integration_kind: rest
+env_vars:
+  - name: RESEARCH_API_KEY
+    description: Custom provider env var (set via /keys/connect).
+    example: ''
+    required: true
+capabilities_supported: []
+install_steps:
+  - Custom provider — env vars are set in ~/.gtm-os/.env via /keys/connect.
+test_query: null

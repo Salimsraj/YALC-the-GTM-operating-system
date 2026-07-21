@@ -8,6 +8,9 @@
 
 import { registerAdapter, listAllAdapters } from './registry.js'
 import { markdownFolderAdapter } from './markdown-folder.js'
+import { notionWorkspaceAdapter } from './notion-workspace.js'
+import { googleDriveAdapter } from './google-drive.js'
+import { campaignLearnerAdapter } from './campaign-learner.js'
 
 let bootstrapped = false
 
@@ -18,6 +21,9 @@ function bootstrap(): void {
   // during vitest's singleton-per-process module graph.
   const existing = new Set(listAllAdapters().map((a) => a.id))
   if (!existing.has(markdownFolderAdapter.id)) registerAdapter(markdownFolderAdapter)
+  if (!existing.has(notionWorkspaceAdapter.id)) registerAdapter(notionWorkspaceAdapter)
+  if (!existing.has(googleDriveAdapter.id)) registerAdapter(googleDriveAdapter)
+  if (!existing.has(campaignLearnerAdapter.id)) registerAdapter(campaignLearnerAdapter)
 }
 
 bootstrap()

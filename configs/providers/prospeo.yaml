@@ -1,0 +1,25 @@
+id: prospeo
+display_name: "Prospeo"
+homepage: https://prospeo.io
+docs_url: https://prospeo.io/docs
+key_acquisition_url: https://app.prospeo.io/dashboard/api-keys
+integration_kind: rest
+mcp_template: null
+env_vars:
+  - name: PROSPEO_API_KEY
+    description: "Prospeo API key. Authorizes email and phone verification, contact search."
+    example: "pk_live_1234567890abcdefghijklmnop"
+    required: true
+capabilities_supported:
+  - id: email-verify
+    adapter_module: src/lib/providers/adapters/email-verify-prospeo.ts
+  - id: contact-search
+    adapter_module: src/lib/providers/adapters/contact-search-prospeo.ts
+install_steps:
+  - "Sign up at $homepage if you don't have an account."
+  - "Get your API key from $key_acquisition_url"
+  - "Paste your key in the form at http://localhost:3847/keys"
+test_query:
+  capability: email-verify
+  input:
+    email: "test@example.com"

@@ -1,7 +1,7 @@
 {
   "buildCommand": "pnpm build:web",
   "outputDirectory": "web/dist",
-  "framework": "other",
+  "framework": "vite",
   "env": {
     "ANTHROPIC_API_KEY": "@anthropic_api_key",
     "COLDIQ_API_KEY": "@coldiq_api_key",

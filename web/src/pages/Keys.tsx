@@ -1,20 +1,17 @@
 /**
- * /keys — provider registry view.
+ * /keys — provider connection dashboard (settings surface).
  *
- * Lists every registered provider with a status badge (green / red / gray),
- * its capability set, and a Test button that fires `/api/keys/test/:id`.
- *
- * Rotate + Add new are navigation stubs in 0.9.0 — the underlying
- * `keys:connect` route lands in 0.9.D, so the buttons just push the user
- * to the eventual URLs (`/keys/connect`).
+ * Mirrors ColdIQ's "Connect your tools" layout with left sidebar navigation
+ * and organized provider sections.
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Search, Zap, Database } from 'lucide-react'
 import { api } from '@/lib/api'
-import { describeError, eyebrowClass } from '@/lib/feedback'
+import { describeError } from '@/lib/feedback'
+import { cn } from '@/lib/utils'
 
 interface KeyEntry {
   id: string
@@ -24,35 +21,68 @@ interface KeyEntry {
   capabilities: string[]
   status: 'green' | 'red' | 'gray'
   hasHealthProbe: boolean
+  category?: string
 }
 
 interface ListResponse {
   providers: KeyEntry[]
 }
 
-interface TestResult {
-  status: string
-  detail: string
-  ok: boolean
+const SETTINGS_NAV = [
+  { label: 'API keys', href: '#api-keys' },
+  { label: 'Usage', href: '#usage' },
+  { label: 'Connect your tools', href: '#' },
+  { label: 'Preferences', href: '#preferences' },
+  { label: 'Billing', href: '#billing' },
+]
+
+function statusBadge(status: KeyEntry['status']): { label: string; variant: string } {
+  if (status === 'green') return { label: 'Connected', variant: 'bg-confidence-high text-white' }
+  if (status === 'red') return { label: 'Error', variant: 'bg-confidence-low text-white' }
+  return { label: 'Not connected', variant: 'bg-muted text-muted-foreground' }
 }
 
-function statusColor(status: KeyEntry['status']): string {
-  if (status === 'green') return 'bg-confidence-high text-white border-transparent'
-  if (status === 'red') return 'bg-confidence-low text-white border-transparent'
-  return 'bg-muted text-muted-foreground border-transparent'
-}
+function ProviderCard({ provider }: { provider: KeyEntry }) {
+  const badge = statusBadge(provider.status)
+  const handleConnect = () => {
+    if (typeof window !== 'undefined') {
+      window.location.href = `/keys/connect?provider=${encodeURIComponent(provider.id)}`
+    }
+  }
 
-function statusLabel(status: KeyEntry['status']): string {
-  if (status === 'green') return 'configured'
-  if (status === 'red') return 'error'
-  return 'not configured'
+  const Icon = provider.id.includes('data') ? Database : Zap
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 flex items-start gap-4 hover:bg-background/50 transition-colors">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+        <Icon size={20} className="text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h3 className="font-semibold text-sm">{provider.name}</h3>
+          <Badge className={`${badge.variant} border-transparent text-xs`}>
+            {badge.label}
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">{provider.description}</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button
+          size="sm"
+          onClick={handleConnect}
+          className="bg-orange-500 hover:bg-orange-600 text-white"
+        >
+          CONNECT
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 export function Keys() {
   const [data, setData] = useState<ListResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [busy, setBusy] = useState<Record<string, boolean>>({})
-  const [testResults, setTestResults] = useState<Record<string, TestResult>>({})
+  const [search, setSearch] = useState('')
 
   const reload = useCallback(async () => {
     setLoadError(null)
@@ -67,126 +97,139 @@ export function Keys() {
     reload()
   }, [reload])
 
-  const handleTest = async (id: string) => {
-    setBusy((prev) => ({ ...prev, [id]: true }))
-    try {
-      const res = await api.post<TestResult>(`/api/keys/test/${encodeURIComponent(id)}`, {})
-      setTestResults((prev) => ({ ...prev, [id]: res }))
-    } catch (err) {
-      setTestResults((prev) => ({
-        ...prev,
-        [id]: { status: 'fail', detail: describeError(err, 'Test failed'), ok: false },
-      }))
-    } finally {
-      setBusy((prev) => ({ ...prev, [id]: false }))
-    }
-  }
-
-  const handleRotate = (id: string) => {
-    // /keys/connect lands in 0.9.D — for now navigate to the planned URL so
-    // the SPA picks it up once the route is live.
-    if (typeof window !== 'undefined') {
-      window.location.href = `/keys/connect?provider=${encodeURIComponent(id)}`
-    }
-  }
-
-  const handleAddNew = () => {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/keys/connect'
-    }
-  }
-
   const providers = data?.providers ?? []
 
+  const yourTools = providers.filter(
+    (p) =>
+      ['instantly', 'lemlist', 'unipile', 'attio'].some((id) =>
+        p.id.toLowerCase().includes(id),
+      ),
+  )
+  const dataProviders = providers.filter(
+    (p) =>
+      ['crustdata', 'firecrawl', 'clay', 'apollo'].some((id) =>
+        p.id.toLowerCase().includes(id),
+      ) || p.id.includes('data'),
+  )
+  const other = providers.filter(
+    (p) => !yourTools.includes(p) && !dataProviders.includes(p),
+  )
+
+  const filtered = (list: KeyEntry[]) =>
+    list.filter((p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.description.toLowerCase().includes(search.toLowerCase()),
+    )
+
   return (
-    <main className="min-h-screen px-6 py-12">
-      <div className="max-w-3xl mx-auto space-y-6">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <p className={eyebrowClass}>Keys</p>
-            <h1 className="font-heading text-3xl font-bold tracking-tight">Providers</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Status of every registered provider. Test runs the provider&apos;s self-health
-              probe.
+    <div className="min-h-screen flex">
+      {/* Settings Sidebar */}
+      <aside className="w-56 shrink-0 border-r border-border bg-card px-5 py-6 sticky top-0 h-screen overflow-y-auto">
+        <h2 className="font-heading text-sm font-semibold mb-4">Settings</h2>
+        <nav className="space-y-1">
+          {SETTINGS_NAV.map((item) => (
+            <a
+              key={item.label}
+              href={item.href}
+              className={cn(
+                'block rounded-md px-3 py-2 text-sm transition-colors',
+                item.label === 'Connect your tools'
+                  ? 'bg-background font-medium text-foreground'
+                  : 'text-muted-foreground hover:bg-background hover:text-foreground',
+              )}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 px-8 py-8 overflow-y-auto">
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">Connect your tools</h1>
+            <p className="text-sm text-muted-foreground">
+              Bring your own keys so playground requests run against your own provider accounts.
             </p>
           </div>
-          <Button
-            data-testid="keys-add-new"
-            variant="gradient"
-            onClick={handleAddNew}
-          >
-            Add new
-          </Button>
-        </header>
 
-        {loadError && <p className="text-sm text-destructive">{loadError}</p>}
+          {loadError && (
+            <p className="rounded-lg border border-border bg-destructive/10 p-3 text-sm text-destructive">
+              {loadError}
+            </p>
+          )}
 
-        <div className="space-y-4">
-          {providers.map((p) => {
-            const tr = testResults[p.id]
-            return (
-              <Card key={p.id} data-testid={`keys-card-${p.id}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <CardTitle>{p.name}</CardTitle>
-                      <CardDescription className="font-mono text-xs">
-                        {p.id} · {p.type}
-                      </CardDescription>
-                    </div>
-                    <Badge
-                      data-testid={`keys-status-${p.id}`}
-                      className={statusColor(p.status)}
-                    >
-                      {statusLabel(p.status)}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">{p.description}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {p.capabilities.map((cap) => (
-                      <Badge key={cap} variant="outline" className="text-[10px]">
-                        {cap}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      data-testid={`keys-test-${p.id}`}
-                      disabled={!p.hasHealthProbe || !!busy[p.id]}
-                      onClick={() => handleTest(p.id)}
-                    >
-                      {busy[p.id] ? 'Testing…' : 'Test'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      data-testid={`keys-rotate-${p.id}`}
-                      onClick={() => handleRotate(p.id)}
-                    >
-                      Rotate
-                    </Button>
-                    {!p.hasHealthProbe && (
-                      <span className="text-xs text-muted-foreground">no probe</span>
-                    )}
-                  </div>
-                  {tr && (
-                    <p
-                      data-testid={`keys-test-result-${p.id}`}
-                      className={`text-xs font-mono ${tr.ok ? 'text-foreground' : 'text-destructive'}`}
-                    >
-                      {tr.status} · {tr.detail}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )
-          })}
+          {/* Search */}
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-3 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search providers…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-foreground/10"
+            />
+          </div>
+
+          {/* Your tools section */}
+          {filtered(yourTools).length > 0 && (
+            <section className="space-y-3">
+              <h2 className="font-heading text-base font-semibold">Your tools</h2>
+              <p className="text-xs text-muted-foreground mb-3">
+                These tools always run on your own account — connect them once instead of passing a key on every request.
+              </p>
+              <div className="space-y-2">
+                {filtered(yourTools).map((p) => (
+                  <ProviderCard key={p.id} provider={p} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Data providers section */}
+          {filtered(dataProviders).length > 0 && (
+            <section className="space-y-3">
+              <h2 className="font-heading text-base font-semibold">
+                Data providers — use your own key
+              </h2>
+              <p className="text-xs text-muted-foreground mb-3">
+                These providers normally run on our accounts and bill our credits. Store your own API key and requests to that provider use your account instead.
+              </p>
+              <div className="space-y-2">
+                {filtered(dataProviders).map((p) => (
+                  <ProviderCard key={p.id} provider={p} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Other providers */}
+          {filtered(other).length > 0 && (
+            <section className="space-y-3">
+              <h2 className="font-heading text-base font-semibold">Other providers</h2>
+              <div className="space-y-2">
+                {filtered(other).map((p) => (
+                  <ProviderCard key={p.id} provider={p} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {providers.length > 0 && filtered([...yourTools, ...dataProviders, ...other]).length === 0 && (
+            <p className="text-center text-sm text-muted-foreground py-8">
+              No providers match "{search}"
+            </p>
+          )}
+
+          {providers.length === 0 && !loadError && (
+            <p className="text-center text-sm text-muted-foreground py-8">
+              No providers configured yet.
+            </p>
+          )}
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }

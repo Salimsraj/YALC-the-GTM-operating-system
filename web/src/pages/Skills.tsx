@@ -11,8 +11,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { describeError, eyebrowClass, preBlockClass } from '@/lib/feedback'

@@ -244,7 +244,7 @@ export function Chat() {
       activeConversationId={conversationId}
       onSelectConversation={(id) => void loadConversation(id)}
       onNewConversation={startNewConversation}
-      onSkillClick={(skillId, skillName) => {
+      onSkillClick={(_, skillName) => {
         setInput(skillName)
       }}
       refreshKey={sidebarRefreshKey}

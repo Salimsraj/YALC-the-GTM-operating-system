@@ -79,7 +79,6 @@ export function AppShell({
   activeConversationId,
   onSelectConversation,
   onNewConversation,
-  onSkillClick,
   refreshKey,
   children,
 }: AppShellProps) {

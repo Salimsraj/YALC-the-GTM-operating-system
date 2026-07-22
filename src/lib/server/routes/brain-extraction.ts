@@ -191,10 +191,12 @@ brainExtractionRoutes.post('/website', async (c) => {
       nodes,
     })
   } catch (error) {
-    console.error('Website extraction error:', error)
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    console.error('Website extraction error:', errorMsg, error)
     return c.json(
       {
-        error: error instanceof Error ? error.message : 'Extraction failed',
+        error: errorMsg || 'Extraction failed with unknown error',
+        details: String(error),
       },
       500,
     )

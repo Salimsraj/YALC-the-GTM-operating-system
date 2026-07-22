@@ -7,7 +7,6 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { setApiToken } from '../lib/api'
 
 type FetchInput = Parameters<typeof fetch>[0]
@@ -45,17 +44,6 @@ function jsonResponse(payload: unknown, status = 200) {
     json: async () => payload,
     text: async () => JSON.stringify(payload),
   } as unknown as Response
-}
-
-const baseSection = {
-  id: 'icp' as const,
-  files: [{ canonical: 'icp/segments.yaml', abs: '/x/icp/segments.yaml', content: 'segments:\n  - name: A\n' }],
-  confidence: 0.75,
-  confidence_signals: {
-    input_chars: 1000,
-    llm_self_rating: 7,
-    has_metadata_anchors: true,
-  },
 }
 
 // TODO: BrainSectionCard component is not yet exported from Brain.tsx

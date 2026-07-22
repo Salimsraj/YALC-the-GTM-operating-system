@@ -1,5 +1,11 @@
 {
   "buildCommand": "pnpm build:web",
   "outputDirectory": "web/dist",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/((?!api|_next/static|_next/image|favicon\\.ico).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

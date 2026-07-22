@@ -8,7 +8,7 @@ import type { ExtractedNode } from '@/hooks/useBrainState'
 
 interface DataSource {
   id: string
-  type: 'notion' | 'google-drive' | 'hubspot' | 'salesforce' | 'fireflies' | 'obsidian' | 'website' | 'manual'
+  type: 'notion' | 'google-drive' | 'hubspot' | 'salesforce' | 'fireflies' | 'obsidian' | 'website' | 'nao' | 'manual'
   name: string
   status: 'connected' | 'syncing' | 'synced' | 'error'
   itemsExtracted?: number
@@ -78,6 +78,12 @@ const SOURCE_CONFIG = {
     label: 'Add Manually',
     color: 'bg-gray-500/10 text-gray-600',
     instructions: 'Type or paste information directly',
+  },
+  nao: {
+    icon: Database,
+    label: 'Nao Analytics Agent',
+    color: 'bg-cyan-500/10 text-cyan-600',
+    instructions: 'Connect to your self-hosted Nao instance',
   },
 }
 
@@ -166,6 +172,16 @@ export function SecondBrainBuilder({ onNodesExtracted, onClear }: SecondBrainBui
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ vaultPath: sourceConfig.vaultPath }),
+          })
+          break
+        case 'nao':
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              instanceUrl: sourceConfig.instanceUrl,
+              apiKey: sourceConfig.apiKey,
+            }),
           })
           break
         default:
@@ -439,6 +455,24 @@ export function SecondBrainBuilder({ onNodesExtracted, onClear }: SecondBrainBui
                           placeholder="Vault path (e.g., /Users/yourname/Documents/MyVault or leave empty to use default)"
                           value={sourceConfig.vaultPath || ''}
                           onChange={(e) => setSourceConfig({ ...sourceConfig, vaultPath: e.target.value })}
+                          className="w-full rounded px-3 py-2 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                      </>
+                    )}
+                    {selectedSourceType === 'nao' && (
+                      <>
+                        <input
+                          type="text"
+                          placeholder="Instance URL (e.g., https://nao.yourcompany.com)"
+                          value={sourceConfig.instanceUrl || ''}
+                          onChange={(e) => setSourceConfig({ ...sourceConfig, instanceUrl: e.target.value })}
+                          className="w-full rounded px-3 py-2 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                        <input
+                          type="password"
+                          placeholder="API Key"
+                          value={sourceConfig.apiKey || ''}
+                          onChange={(e) => setSourceConfig({ ...sourceConfig, apiKey: e.target.value })}
                           className="w-full rounded px-3 py-2 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                         />
                       </>

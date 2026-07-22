@@ -11,6 +11,7 @@ import {
   extractFromFireflies,
   extractFromGoogleDrive,
   extractFromWebsite,
+  extractFromNao,
   extractEntitiesFromText,
 } from '../../brain/data-extractors.js'
 
@@ -197,6 +198,40 @@ brainExtractionRoutes.post('/website', async (c) => {
       {
         error: errorMsg || 'Extraction failed with unknown error',
         details: String(error),
+      },
+      500,
+    )
+  }
+})
+
+/**
+ * Extract from Nao
+ * POST /api/brain/extract/nao
+ */
+brainExtractionRoutes.post('/nao', async (c) => {
+  try {
+    const body = await c.req.json()
+    const { instanceUrl, apiKey } = body
+
+    if (!instanceUrl || !apiKey) {
+      return c.json(
+        { error: 'Missing required fields: instanceUrl, apiKey' },
+        400,
+      )
+    }
+
+    const nodes = await extractFromNao({ instanceUrl, apiKey })
+
+    return c.json({
+      source: 'nao',
+      itemsExtracted: nodes.length,
+      nodes,
+    })
+  } catch (error) {
+    console.error('Nao extraction error:', error)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Extraction failed',
       },
       500,
     )

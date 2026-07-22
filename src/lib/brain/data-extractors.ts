@@ -91,6 +91,43 @@ export async function extractFromHubSpot(config: {
   return nodes
 }
 
+// ─── NAO EXTRACTOR ──────────────────────────────────────────────────────────
+// Nao (getnao.io / github.com/getnao/nao) is a self-hosted analytics agent
+// that sits on top of a data warehouse — it has no documented public REST
+// API for pulling context out programmatically (it's tRPC internally,
+// browser-to-server). Once a self-hosted instance + API key is available,
+// swap the placeholder below for a real call to that instance's endpoint.
+
+export async function extractFromNao(config: {
+  instanceUrl: string
+  apiKey: string
+}): Promise<ExtractedNode[]> {
+  const nodes: ExtractedNode[] = []
+
+  try {
+    // TODO: Call the self-hosted Nao instance's API once available to pull
+    // warehouse context (metrics, saved queries, docs it has indexed).
+    console.log('Nao extraction would use:', config)
+
+    // In real implementation:
+    // 1. Authenticate against the self-hosted Nao instance
+    // 2. Pull indexed context (data model docs, saved queries/metrics, tools/MCPs it exposes)
+    // 3. Use Claude to extract entities (companies, deals, signals) from that context
+    // 4. Create relationship graph back to the rest of the Second Brain
+
+    nodes.push({
+      type: 'note',
+      name: 'Nao extraction configured',
+      content: `Connected to Nao instance: ${config.instanceUrl}`,
+      metadata: { source: 'nao' },
+    })
+  } catch (error) {
+    console.error('Nao extraction failed:', error)
+  }
+
+  return nodes
+}
+
 // ─── SALESFORCE EXTRACTOR ───────────────────────────────────────────────────
 
 export async function extractFromSalesforce(config: {

@@ -36,4 +36,12 @@ app.all('/api/*', (c) =>
 
 app.all('*', (c) => c.notFound())
 
-export default app.fetch
+// Vercel's Node.js function runtime expects a Web Fetch-style handler via a
+// named export (not a default export) — see the `hono/vercel` adapter note
+// that this signature works for GET/POST/etc uniformly through one export.
+export const GET = app.fetch
+export const POST = app.fetch
+export const PUT = app.fetch
+export const DELETE = app.fetch
+export const PATCH = app.fetch
+export const OPTIONS = app.fetch

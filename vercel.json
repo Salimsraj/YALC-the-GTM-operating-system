@@ -2,16 +2,6 @@
   "buildCommand": "pnpm build:web",
   "outputDirectory": "web/dist",
   "framework": "vite",
-  "env": {
-    "ANTHROPIC_API_KEY": "@anthropic_api_key",
-    "COLDIQ_API_KEY": "@coldiq_api_key",
-    "APIFY_API_KEY": "@apify_api_key",
-    "LINKUP_API_KEY": "@linkup_api_key",
-    "PROSPEO_API_KEY": "@prospeo_api_key",
-    "FIRECRAWL_API_KEY": "@firecrawl_api_key",
-    "FULLENRICH_API_KEY": "@fullenrich_api_key",
-    "UNIPILE_API_KEY": "@unipile_api_key"
-  },
   "functions": {
     "api/index.ts": {
       "runtime": "nodejs20.x"

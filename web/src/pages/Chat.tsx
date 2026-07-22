@@ -38,6 +38,64 @@ const SUGGESTIONS = [
   'What campaigns are currently active?',
 ]
 
+interface PromptTemplate {
+  label: string
+  description: string
+  prompt: string
+}
+
+const TEMPLATES: PromptTemplate[] = [
+  {
+    label: 'Launch outbound campaign',
+    description: 'List build → hiring signals → ICP scoring → enrich → copy → automate',
+    prompt: `I want to launch an outbound campaign for [COMPANY NAME], selling [PRODUCT/SERVICE] to [TARGET MARKET].
+
+Run through this pipeline step by step, showing me the output at each stage before moving to the next:
+
+1. Build the target company list
+- Source companies matching: [industry, size, geography, tech stack, funding stage — whatever applies]
+- Target list size: [number] companies
+- Exclude: [competitors, existing customers, blocklist]
+
+2. Detect hiring signals
+- Pull active job postings for each company (roles related to [e.g. "sales", "RevOps", "growth", or whatever signal maps to buying intent])
+- Flag companies with [X+] open roles in the last [30/60/90] days as high-intent
+- Note the specific role titles and posting dates — I want to reference this in outreach
+
+3. Define the ICP and score-fit each company
+- Based on [firmographics: size, industry, funding, tech stack] + the hiring signal above, score each company 1–100 for fit
+- Show me your scoring logic before ranking
+- Cut anything below [score threshold]
+
+4. Rank and filter down to a working list
+- Rank remaining companies by fit score + signal strength
+- Cap at [5] leads per company (title priority: [exact title match → seniority → tenure → HQ location])
+- Final output: [target number] companies, [X] leads per company
+
+5. Enrich contacts
+- For each shortlisted lead, find: full name, title, verified email, phone (if available), LinkedIn URL
+- Use [provider: FullEnrich / BetterEnrich / Prospeo — specify which]
+- Flag any leads where enrichment fails so I can review manually
+
+6. Write the outbound sequence
+- Channel: [email / LinkedIn / both]
+- Angle: reference the hiring signal directly — tie it to the pain point our product solves
+- Sequence: [e.g. connect → 2 days → DM1 → 3 days → DM2] or [email 1 → wait 3 days → email 2 → wait 4 days → email 3]
+- Tone: [your voice — casual/direct/consultative, whatever fits]
+- Write 2 variants per touch so we can A/B test
+
+7. Set up automation
+- Push the finalized list + copy into [Lemlist / Instantly]
+- Confirm sending limits, warm-up status, and daily send caps before activating
+- Pause the campaign for my review before it goes live — do not send anything without my explicit approval
+
+Non-negotiables:
+- Show your work at every step — don't skip straight to the final list or final copy
+- Flag any assumptions you're making so I can correct them early
+- Nothing gets pushed to an external platform (Lemlist/Instantly/Clay) without me confirming first`,
+  },
+]
+
 function newId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Math.random())
 }
@@ -260,6 +318,32 @@ export function Chat() {
                 <p className="text-base text-gray-600 dark:text-gray-400 mb-8 max-w-lg mx-auto">
                   Find companies, find people, enrich leads, qualify against your ICP, and more — from one chat.
                 </p>
+
+                {TEMPLATES.length > 0 && (
+                  <div className="max-w-2xl mx-auto mb-6">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2 text-left">
+                      Templates
+                    </p>
+                    <div className="space-y-2">
+                      {TEMPLATES.map((t) => (
+                        <button
+                          key={t.label}
+                          type="button"
+                          onClick={() => setInput(t.prompt)}
+                          className="w-full text-left rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/30 px-4 py-3 hover:bg-orange-100 dark:hover:bg-orange-950/50 transition"
+                        >
+                          <span className="block font-heading font-semibold text-sm text-gray-900 dark:text-white">
+                            {t.label}
+                          </span>
+                          <span className="block text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                            {t.description}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
                   {SUGGESTIONS.map((s) => (
                     <button

@@ -12,10 +12,9 @@
     "FULLENRICH_API_KEY": "@fullenrich_api_key",
     "UNIPILE_API_KEY": "@unipile_api_key"
   },
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "http://localhost:3847/api/:path*"
+  "functions": {
+    "api/index.ts": {
+      "runtime": "nodejs20.x"
     }
-  ]
+  }
 }

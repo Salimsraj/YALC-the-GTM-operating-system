@@ -109,10 +109,21 @@ export function Chat() {
   const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0)
   const esRef = useRef<EventSource | null>(null)
   const transcriptEndRef = useRef<HTMLDivElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [items])
+
+  // Auto-grow the textarea to fit its content (e.g. a multi-line template)
+  // instead of squeezing everything into a single scrollable line.
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const maxHeight = 420
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
+  }, [input])
 
   useEffect(() => {
     return () => {
@@ -374,13 +385,14 @@ export function Chat() {
           </div>
 
           <form
-            className="max-w-3xl mx-auto flex gap-3"
+            className="max-w-3xl mx-auto flex items-end gap-3"
             onSubmit={(e) => {
               e.preventDefault()
               void handleSend(input)
             }}
           >
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -392,7 +404,7 @@ export function Chat() {
               placeholder="Ask Outbound OS to find companies, people, emails, or run a skill..."
               rows={1}
               disabled={sending}
-              className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white disabled:opacity-50"
+              className="flex-1 resize-y rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:text-white disabled:opacity-50 max-h-[420px] overflow-y-auto"
             />
             <Button
               type="submit"

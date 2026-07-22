@@ -27,20 +27,14 @@ import { lemlistRouter } from '../src/lib/server/routes/lemlist.js'
 
 const app = new Hono()
 
-// CORS for Vercel deployment
-const corsOrigins = [
-  'https://yalc.vercel.app',
-  'https://*.vercel.app',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-]
-app.use('*', cors({ origin: corsOrigins }))
+// CORS for Vercel deployment — allow all origins for now (can restrict later)
+app.use('*', cors({ origin: '*' }))
 
-// Protect API routes with bearer token
-const apiToken = process.env.GTM_OS_API_TOKEN
-if (apiToken) {
-  app.use('/api/*', bearerAuth({ token: apiToken }))
-}
+// Protect API routes with bearer token (optional, disabled on Vercel for now)
+// const apiToken = process.env.GTM_OS_API_TOKEN
+// if (apiToken) {
+//   app.use('/api/*', bearerAuth({ token: apiToken }))
+// }
 
 // API routes
 app.route('/api/review', reviewRoutes)
